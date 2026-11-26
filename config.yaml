@@ -1,0 +1,53 @@
+# Non-secret settings. API keys belong in .env (see .env.example).
+scrape:
+  timeout_seconds: 20.0
+  user_agent: GrowFAQPrototype/0.1 (facts-only RAG demo)
+
+corpus:
+  min_document_chars: 200
+  pages:
+    - name: HDFC Mutual Fund
+      url: https://groww.in/mutual-funds/amc/hdfc-mutual-funds
+    - name: HDFC Large Cap Fund Direct Growth
+      url: https://groww.in/mutual-funds/hdfc-large-cap-fund-direct-growth
+    - name: HDFC Flexi Cap Direct Plan Growth
+      url: https://groww.in/mutual-funds/hdfc-equity-fund-direct-growth
+    - name: HDFC ELSS Tax Saver Fund Direct Plan Growth
+      url: https://groww.in/mutual-funds/hdfc-elss-tax-saver-fund-direct-plan-growth
+    - name: HDFC Mid Cap Fund Direct Growth
+      url: https://groww.in/mutual-funds/hdfc-mid-cap-fund-direct-growth
+
+embedding:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  batch_size: 64
+
+vector_db:
+  persist_path: data/chroma
+  collection: hdfc_mf_facts
+  metric: cosine
+
+chunking:
+  max_prose_words: 180
+  overlap_words: 20
+
+retrieval:
+  top_k: 4
+
+llm:
+  provider: groq
+  model: openai/gpt-oss-20b
+  timeout_seconds: 30.0
+
+answer:
+  max_sentences: 3
+
+sources:
+  catalog: Docs/sources.md
+
+paths:
+  raw_dir: data/raw
+  documents_dir: data/documents
+  chunks_dir: data/chunks
+  embeddings_dir: data/embeddings
+  traces_dir: data/traces
+  corpus_file: data/corpus.json

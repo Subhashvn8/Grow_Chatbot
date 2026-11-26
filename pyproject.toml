@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grow-faq"
+version = "0.1.0"
+description = "Facts-only HDFC mutual fund FAQ assistant"
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0.2",
+    "python-dotenv>=1.0.1",
+    "httpx>=0.27.2",
+    "beautifulsoup4>=4.12.3",
+    "sentence-transformers>=3.4.1",
+    "chromadb>=0.6.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "groq>=0.13.0",
+    "google-generativeai>=0.8.3",
+    "openai>=1.60.0",
+    "anthropic>=0.40.0",
+    "mistralai>=1.2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+grow-scrape = "grow_faq.ingest.scrape:main"
+grow-load = "grow_faq.ingest.load:main"
+grow-chunk = "grow_faq.ingest.chunk:main"
+grow-embed = "grow_faq.ingest.embed:main"
+grow-index = "grow_faq.ingest.index:main"
+grow-ingest = "grow_faq.ingest.ingest:main"
+grow-ask = "grow_faq.query.ask:main"
+grow-ui = "grow_faq.ui.app:main"
