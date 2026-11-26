@@ -136,9 +136,15 @@ CHROMA_API_KEY=your_chroma_key
 TRACE_ENABLED=false
 ```
 
+Remote retrieval calls the Chroma v2 REST API directly, so `chromadb` is not
+installed on Vercel. `CHROMA_HOST` may be a hostname such as `api.trychroma.com`
+or a full URL. Chroma Cloud needs `CHROMA_TENANT` and `CHROMA_DATABASE`; a local
+Chroma server defaults to `default_tenant` / `default_database`.
+
 `LLM_PROVIDER`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`, `VECTOR_METRIC`, `TOP_K`,
-`TRACE_DIR`, and `CORPUS_FILE` can also be overridden. When the embedding model
-changes, re-run ingestion offline and upload the vectors to the remote store.
+`TRACE_DIR`, `CORPUS_FILE`, and `CHROMA_TIMEOUT_SECONDS` can also be overridden.
+When the embedding model changes, re-run ingestion offline and upload the
+vectors to the remote store.
 
 ## Data layout
 

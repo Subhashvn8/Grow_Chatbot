@@ -1,9 +1,10 @@
 """Chroma collection access shared by indexing and retrieval.
 
 Local runs use the persistent client at ``vector_db.persist_path``. Setting
-``CHROMA_HOST`` switches retrieval to a remote Chroma client for serverless
-deployments. Collection metadata records the embedding model and distance space
-so an old collection cannot be queried with vectors from a different model.
+``CHROMA_HOST`` switches retrieval to the lightweight Chroma v2 REST client, so
+serverless deployments do not need the heavy ``chromadb`` package. Collection
+metadata records the embedding model and distance space so an old collection
+cannot be queried with vectors from a different model.
 """
 
 from __future__ import annotations
@@ -41,29 +42,18 @@ def _import_chromadb() -> Any:
 
 
 def new_client(settings: Settings) -> Any:
-    """Open a remote Chroma client when configured, otherwise local persistent."""
+    """Open a remote HTTP client when configured, otherwise local persistent."""
+    if settings.vector_host:
+        from grow_faq.vector_http import ChromaHttpClient
+
+        return ChromaHttpClient(settings)
+
     chromadb = _import_chromadb()
     chroma_settings = chromadb.config.Settings(anonymized_telemetry=False)
-
-    if not settings.vector_host:
-        return chromadb.PersistentClient(
-            path=str(settings.vector_persist_path),
-            settings=chroma_settings,
-        )
-
-    kwargs: dict[str, Any] = {
-        "host": settings.vector_host,
-        "port": settings.vector_port,
-        "ssl": settings.vector_ssl,
-        "settings": chroma_settings,
-    }
-    if settings.vector_tenant:
-        kwargs["tenant"] = settings.vector_tenant
-    if settings.vector_database:
-        kwargs["database"] = settings.vector_database
-    if settings.vector_api_key:
-        kwargs["headers"] = {"X-Chroma-Token": settings.vector_api_key}
-    return chromadb.HttpClient(**kwargs)
+    return chromadb.PersistentClient(
+        path=str(settings.vector_persist_path),
+        settings=chroma_settings,
+    )
 
 
 def _collection_metadata(collection: Any) -> dict[str, Any]:
@@ -91,10 +81,16 @@ def open_collection(settings: Settings, client: Any | None = None) -> Any:
 
 def existing_collection(settings: Settings, client: Any | None = None) -> Any | None:
     """Return the collection if it exists, without creating or rebuilding it."""
+    from grow_faq.vector_http import CollectionNotFoundError
+
     client = client if client is not None else new_client(settings)
     try:
         return client.get_collection(name=settings.vector_collection)
+    except CollectionNotFoundError:
+        return None
     except Exception:
+        if getattr(client, "is_http", False):
+            raise
         return None
 
 

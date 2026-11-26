@@ -3,11 +3,13 @@ import unittest
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from grow_faq.config import load_settings
 from grow_faq.embedding import encode_texts
 from grow_faq.query.answer import Answer
 from grow_faq.query.trace import write_trace
+from grow_faq.vector_http import ChromaHttpClient, CollectionNotFoundError
 from grow_faq.vector_store import new_client
 
 
@@ -43,25 +45,87 @@ class ServerlessTests(unittest.TestCase):
         self.assertEqual(settings.top_k, 2)
         self.assertFalse(settings.trace_enabled)
 
-    def test_remote_chroma_client_is_used_when_host_is_set(self) -> None:
+    def test_remote_chroma_client_does_not_import_chromadb(self) -> None:
         values = {
             "CHROMA_HOST": "chroma.example.com",
+            "CHROMA_TENANT": "tenant-1",
+            "CHROMA_DATABASE": "faq",
             "CHROMA_API_KEY": "client-secret",
         }
         with patch.dict(os.environ, values):
             settings = load_settings()
 
         with patch("grow_faq.vector_store._import_chromadb") as import_mock:
-            chromadb = import_mock.return_value
             client = new_client(settings)
 
-        kwargs = chromadb.HttpClient.call_args.kwargs
-        self.assertIs(client, chromadb.HttpClient.return_value)
-        self.assertEqual(kwargs["host"], "chroma.example.com")
-        self.assertEqual(kwargs["port"], 443)
-        self.assertTrue(kwargs["ssl"])
-        self.assertEqual(kwargs["headers"], {"X-Chroma-Token": "client-secret"})
-        chromadb.PersistentClient.assert_not_called()
+        import_mock.assert_not_called()
+        self.assertIsInstance(client, ChromaHttpClient)
+        self.assertEqual(client.base_url, "https://chroma.example.com")
+        self.assertEqual(client.tenant, "tenant-1")
+        self.assertEqual(client.database, "faq")
+        self.assertEqual(client.api_key, "client-secret")
+
+    def test_http_collection_uses_chroma_v2_endpoints(self) -> None:
+        values = {
+            "CHROMA_HOST": "https://chroma.example.com",
+            "CHROMA_TENANT": "tenant-1",
+            "CHROMA_DATABASE": "faq",
+        }
+        with patch.dict(os.environ, values):
+            settings = load_settings()
+        client = ChromaHttpClient(settings)
+
+        collection_data = {
+            "id": "col-1",
+            "name": "facts",
+            "metadata": {"embedding_model": "test-embedding"},
+        }
+        with patch.object(client, "_request", return_value=collection_data) as request:
+            collection = client.get_collection("facts")
+
+        request.assert_called_once_with(
+            "GET",
+            "/api/v2/tenants/tenant-1/databases/faq/collections/facts",
+        )
+        self.assertEqual(collection.collection_id, "col-1")
+        self.assertEqual(collection.metadata, {"embedding_model": "test-embedding"})
+
+        query_result = {
+            "ids": [["chunk-1"]],
+            "documents": [["Expense ratio is 0.42%."]],
+            "metadatas": [[{"source_url": "https://groww.in/example"}]],
+            "distances": [[0.05]],
+        }
+        with patch.object(client, "_request", return_value=query_result) as request:
+            result = collection.query(
+                query_embeddings=[[0.1, 0.2]],
+                n_results=4,
+                include=["documents", "metadatas", "distances"],
+                where={"scheme_or_amc": "HDFC Flexi Cap Fund Direct Growth"},
+            )
+
+        request.assert_called_once_with(
+            "POST",
+            "/api/v2/tenants/tenant-1/databases/faq/collections/col-1/query",
+            {
+                "query_embeddings": [[0.1, 0.2]],
+                "n_results": 4,
+                "include": ["documents", "metadatas", "distances"],
+                "where": {"scheme_or_amc": "HDFC Flexi Cap Fund Direct Growth"},
+            },
+        )
+        self.assertEqual(result, query_result)
+
+    def test_missing_remote_collection_is_distinguishable(self) -> None:
+        values = {"CHROMA_HOST": "chroma.example.com"}
+        with patch.dict(os.environ, values):
+            settings = load_settings()
+        client = ChromaHttpClient(settings)
+
+        error = HTTPError("url", 404, "Not Found", {}, None)
+        with patch("grow_faq.vector_http.urlopen", side_effect=error):
+            with self.assertRaises(CollectionNotFoundError):
+                client._request("GET", "/missing")
 
     def test_hosted_embeddings_are_normalized_and_reordered(self) -> None:
         values = {
