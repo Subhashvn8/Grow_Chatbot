@@ -26,6 +26,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+grow_faq = ["ui/*.html"]
+
 [project.scripts]
 grow-scrape = "grow_faq.ingest.scrape:main"
 grow-load = "grow_faq.ingest.load:main"

@@ -2,11 +2,12 @@
 
 ## HDFC Mutual Fund FAQ Assistant
 
-**Status:** Draft  
+**Status:** Main source of truth  
 **Source:** `Docs/PRD.md`  
+**UI design source:** `Docs/design/stitch_cosmic_groww_ai_chatbot.zip`  
 **System type:** Local, phased RAG prototype. Five public pages in, one cited fact or a refusal out.
 
-This document decides how the prototype is split, what each stage writes to disk, and how a question becomes an answer. Product rules (what to answer, what to refuse, the three-sentence cap) stay in the PRD. This file is the shape of the code and the data.
+This document decides how the prototype is split, what each stage writes to disk, and how a question becomes an answer. Product rules (what to answer, what to refuse, the three-sentence cap) stay in the PRD. This file is the shape of the code and the data. `Docs/implementation.md` is the main source of truth for build order and the exact UI contract.
 
 ---
 
@@ -275,13 +276,30 @@ A single local page. It does not embed, chunk, or call Groww.
 
 | Region | Content |
 | --- | --- |
+| Header | Fixed top bar with the assistant name and the facts-only disclaimer from PRD §6.1, always visible. |
 | Welcome | Names the assistant and the HDFC AMC plus four direct-growth schemes. |
-| Examples | Three buttons that submit factual questions from PRD §5.3. |
-| Disclaimer | The facts-only snippet from PRD §6.1, always visible. |
-| Input | One text field. No identity fields. |
+| Examples | Three pill buttons that submit factual questions from PRD §5.3. |
+| Thread | User turn and source-backed assistant card, adapted from the Stitch chat screen. |
+| Input | One text field in a docked capsule. No identity fields. |
 | Response | Answer text, one link, `Last updated from sources: <date>`. |
 
 The page calls the query path in-process (or a local HTTP handler that wraps it). It shows the same string the CLI would print.
+
+### 4.10.1 UI visual source
+
+The visual language comes from the Google Stitch export in
+`Docs/design/stitch_cosmic_groww_ai_chatbot.zip`. The retained source copies are:
+
+- `Docs/design/stitch/DESIGN.md` — the "Cosmic Precision Fintech" tokens
+  (`Plus Jakarta Sans`, `Space Grotesk`, emerald primary, orbital dividers).
+- `Docs/design/stitch/grow_chatbot_ai_assistant.code.html` — the single-screen
+  chat layout.
+
+The rendered implementation is `src/grow_faq/ui/chat_page.html`, loaded by
+`src/grow_faq/ui/app.py`. Only the visual system is borrowed. The Stitch demo's
+portfolio, market, advice, attachment, and profile content is deliberately
+excluded. Product rules in this file and `Docs/implementation.md` override any
+copy in the export.
 
 ### 4.11 Source catalog
 
@@ -377,7 +395,7 @@ Matches PRD §15. The CLI is enough through step 5.
 | FR-3, FR-4 same embedder and collection | `embedding.model` + collection metadata check |
 | FR-5, FR-6, FR-7 answer policy | `policy.py` + citation allowlist |
 | FR-8 date line | `corpus.json` `fetched_at`, not the clock |
-| FR-9 UI | `ui/app.py` after step 5 |
+| FR-9 UI | `ui/app.py` + `ui/chat_page.html` after step 5; Stitch source in §4.10.1 |
 | FR-10 no PII stored | `pii.py` before the provider and before traces |
 | FR-11 stage artifacts | `data/raw`, `data/chunks`, `data/chroma`, `data/traces` |
 | FR-12 config | `config.yaml` |

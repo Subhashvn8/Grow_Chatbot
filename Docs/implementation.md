@@ -2,9 +2,10 @@
 
 ## HDFC Mutual Fund FAQ Assistant
 
-**Source:** `Docs/architecture.md`
+**Source:** `Docs/architecture.md`  
+**Status:** Main source of truth for build order and UI implementation
 
-Build in this order. Each step writes files under `data/` so the stage can be shown on its own. Ingestion does not call an LLM. The query path does not fetch the web.
+Build in this order. Each step writes files under `data/` so the stage can be shown on its own. Ingestion does not call an LLM. The query path does not fetch the web. Together with `Docs/architecture.md`, this file is the canonical reference for the UI; the Stitch export is a visual reference only.
 
 ---
 
@@ -24,6 +25,8 @@ Grow_Chatbot/
     query/                # retrieve, policy, answer
     llm/                  # Groq and the other providers
     ui/
+      app.py              # FastAPI page + /ask
+      chat_page.html      # Stitch-derived page template
   data/
     raw/                  # scraped HTML
     documents/            # loaded text, one file per page
@@ -32,6 +35,10 @@ Grow_Chatbot/
     chroma/
     traces/
   Docs/
+    design/
+      stitch_cosmic_groww_ai_chatbot.zip
+      stitch/DESIGN.md
+      stitch/grow_chatbot_ai_assistant.code.html
 ```
 
 ```bash
@@ -173,6 +180,28 @@ A single local page (`grow-ui`). It only calls the ask function. It does not scr
 - One text box. No name, email, phone, PAN, or account field.
 - The reply shows the answer, one link, and the last-updated line.
 
+### 8.1 Stitch visual implementation
+
+The page is adapted from the Google Stitch export
+`Docs/design/stitch_cosmic_groww_ai_chatbot.zip`, specifically the
+`grow_chatbot_ai_assistant` screen and the `cosmic_precision_fintech` design
+system. The retained copies are in `Docs/design/stitch/`. The canonical render
+source is `src/grow_faq/ui/chat_page.html`; `src/grow_faq/ui/app.py` only fills
+four placeholders and serves it.
+
+Keep these parts of the Stitch design:
+
+- emerald tokens (`#00B386`, `#006c4f`), Plus Jakarta Sans, Space Grotesk,
+  orbital divider graphics, and fixed/blurred header and composer surfaces;
+- the single-column chat thread with a right-aligned user turn and a
+  source-backed assistant card;
+- pill-shaped example chips and docked input capsule.
+
+Do not copy the export's portfolio values, market ticks, advice language,
+attachments, profile control, or extra tabs. The page still makes exactly one
+network call: `POST /ask`. No Tailwind CDN is bundled; the CSS is local so the
+page works on Vercel and Render without a build step.
+
 Build the UI only after the CLI has answered an expense-ratio question and refused a “should I buy” question.
 
 Also finish `Docs/sources.md` (15–25 official URLs), `Docs/sample_qa.md` (5–10 real answers taken from traces), and a README with setup, scope, and limits.
@@ -200,5 +229,6 @@ These are code checks, not model judgment. Run them before treating the prototyp
 | Stale model | `embedding.model` in config differs from the collection | Ask refuses and names `grow-embed` and `grow-index`. |
 | Provider down | Timeout or 401 | “The answer could not be generated.” No guessed fact. |
 | Two schemes in one question | Large Cap and Mid Cap both named | No metadata filter. Retrieval searches the whole collection. |
+| Stitch UI | `GET /` | One `fetch('/ask'`) call, local CSS tokens, fixed disclaimer, three chips, one text input. |
 
 Manual demo check: open one raw HTML file, one loaded document, a few lines of `chunks.jsonl`, one embedding record, one Chroma document, and one trace, and confirm the UI answer matches `grow-ask` for the same question.

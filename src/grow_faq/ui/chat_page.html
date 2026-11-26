@@ -1,0 +1,549 @@
+<!doctype html>
+<!--
+  Visual source: Google Stitch export stitch_cosmic_groww_ai_chatbot.zip.
+  Screen: grow_chatbot_ai_assistant/code.html.
+  Design system: cosmic_precision_fintech/DESIGN.md ("Cosmic Precision Fintech").
+  Product copy, guardrails, and the single /ask endpoint are defined in
+  Docs/architecture.md and Docs/implementation.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>HDFC Mutual Fund FAQ Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  :root {
+    --surface: #fbf8ff;
+    --surface-low: #f3f2ff;
+    --surface-container: #ececff;
+    --surface-high: #e5e6ff;
+    --surface-lowest: #ffffff;
+    --on-surface: #171a2c;
+    --on-surface-variant: #3c4a43;
+    --outline: #6c7a73;
+    --outline-variant: #bbcac1;
+    --primary: #006c4f;
+    --primary-container: #00b386;
+    --on-primary: #ffffff;
+    --on-primary-container: #003d2c;
+    --secondary-container: #89f4c8;
+    --error: #ba1a1a;
+    --border: #eaecef;
+    --shadow: 0 2px 8px -2px rgba(68, 71, 91, .04), 0 1px 2px -1px rgba(68, 71, 91, .02);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; margin: 0; }
+  body {
+    padding: 76px 0 146px;
+    overflow-x: hidden;
+    background: var(--surface);
+    color: var(--on-surface);
+    font: 400 14px/22px "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .topbar {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 30;
+    height: 72px;
+    background: rgba(251, 248, 255, .88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(187, 202, 193, .35);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, .03);
+  }
+
+  .topbar-inner {
+    max-width: 880px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-mark {
+    position: relative;
+    flex: 0 0 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(137, 244, 200, .45);
+  }
+  .brand-mark svg { width: 30px; height: 30px; animation: orbit 12s linear infinite; }
+  .brand-mark::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--primary-container);
+    box-shadow: 0 0 8px var(--primary-container);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .brand-sub { color: var(--on-surface-variant); font-size: 11px; font-weight: 500; letter-spacing: .03em; }
+
+  .disclaimer {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 7px 12px;
+    border: 1px solid rgba(0, 179, 134, .35);
+    border-radius: 999px;
+    background: var(--secondary-container);
+    color: var(--on-primary-container);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+
+  @keyframes orbit { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+  .orbital-bg {
+    position: fixed;
+    inset: 72px 0 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .orbital-bg::before {
+    content: "";
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    width: 420px;
+    height: 420px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(137, 244, 200, .28) 0%, rgba(0, 179, 134, .05) 55%, transparent 72%);
+    filter: blur(12px);
+  }
+  .orbital-bg svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .42; }
+
+  main { position: relative; z-index: 1; max-width: 752px; margin: 0 auto; padding: 16px 16px 32px; }
+
+  .status-pill {
+    width: fit-content;
+    margin: 0 auto;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(187, 202, 193, .45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .92);
+    box-shadow: var(--shadow);
+    color: var(--on-surface-variant);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .status-dot { position: relative; width: 12px; height: 12px; display: inline-grid; place-items: center; }
+  .status-dot::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgba(0, 179, 134, .2);
+    animation: pulse 2s infinite;
+  }
+  .status-dot::after { content: ""; width: 7px; height: 7px; border-radius: 999px; background: var(--primary-container); }
+  .status-pill strong { color: var(--on-surface); }
+  .sep { width: 3px; height: 3px; border-radius: 999px; background: var(--outline-variant); }
+
+  .thread { display: flex; flex-direction: column; gap: 18px; margin-top: 20px; }
+
+  .assistant-card, .user-bubble {
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .assistant-card {
+    align-self: flex-start;
+    width: 100%;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+    background: var(--surface-lowest);
+  }
+
+  .assistant-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .avatar {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(137, 244, 200, .4);
+  }
+  .avatar svg { width: 22px; height: 22px; animation: orbit 12s linear infinite; }
+  .assistant-name { font-size: 12px; font-weight: 700; letter-spacing: -.005em; }
+  .verified {
+    margin-left: auto;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--surface-low);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .welcome { margin: 0; color: var(--on-surface); font-size: 14px; line-height: 24px; }
+  .examples { margin-top: 14px; }
+  .examples-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--on-surface-variant);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-lowest);
+    color: var(--on-surface);
+    font: 600 12px/18px "Plus Jakarta Sans", sans-serif;
+    cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, transform .12s ease;
+  }
+  .chip::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--primary-container);
+  }
+  .chip:hover { background: rgba(137, 244, 200, .28); border-color: var(--primary-container); }
+  .chip:active { transform: scale(.97); }
+
+  .user-row { align-self: flex-end; max-width: 90%; padding-left: 28px; }
+  .user-bubble {
+    padding: 11px 15px;
+    border: 1px solid rgba(0, 179, 134, .2);
+    border-top-right-radius: 4px;
+    background: var(--secondary-container);
+    color: var(--on-primary-container);
+    line-height: 22px;
+  }
+
+  .answer-body { min-height: 24px; }
+  .answer-line { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .answer-line:last-child { margin-bottom: 0; }
+  .answer-line a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .answer-line.date {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    color: var(--on-surface-variant);
+    font: 600 11px/18px "Space Grotesk", monospace;
+  }
+  .answer-body.is-error { color: var(--error); }
+
+  .thinking { display: flex; align-items: center; gap: 6px; color: var(--on-surface-variant); font-size: 12px; }
+  .thinking span:not(.pulse) { margin-left: 4px; }
+  .pulse { width: 7px; height: 7px; border-radius: 999px; background: var(--primary-container); animation: pulse 1s infinite; }
+  .pulse:nth-child(2) { animation-delay: .15s; opacity: .7; }
+  .pulse:nth-child(3) { animation-delay: .3s; opacity: .4; }
+
+  .composer-wrap {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 25;
+    padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--surface) 74%, rgba(251, 248, 255, 0));
+  }
+  .composer-inner { max-width: 752px; margin: 0 auto; }
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 7px 7px 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .94);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 24px rgba(68, 71, 91, .08);
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  .composer:focus-within {
+    border-color: var(--primary-container);
+    box-shadow: 0 0 0 1px var(--primary-container), 0 8px 24px -4px rgba(0, 179, 134, .12);
+  }
+  .composer input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--on-surface);
+    font: 400 14px/22px "Plus Jakarta Sans", sans-serif;
+  }
+  .composer input::placeholder { color: var(--outline); }
+  .send {
+    flex: 0 0 auto;
+    height: 40px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--primary-container);
+    color: var(--on-primary);
+    font: 700 12px/1 "Plus Jakarta Sans", sans-serif;
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(0, 179, 134, .4);
+    transition: background .18s ease, transform .12s ease, opacity .18s ease;
+  }
+  .send:hover { background: var(--primary); }
+  .send:active { transform: scale(.97); }
+  .send:disabled { opacity: .58; cursor: progress; }
+  .send svg { width: 16px; height: 16px; }
+  .composer-note { margin: 8px 0 0; text-align: center; color: var(--on-surface-variant); font-size: 10px; letter-spacing: .03em; }
+
+  @media (max-width: 640px) {
+    body { padding-top: 112px; padding-bottom: 132px; }
+    .topbar { height: auto; }
+    .topbar-inner { min-height: 104px; padding: 12px 16px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; }
+    .disclaimer { padding: 5px 10px; }
+    .orbital-bg { inset: 104px 0 0; }
+    main { padding: 14px 12px 24px; }
+    .assistant-card { padding: 14px; }
+    .user-row { max-width: 94%; }
+    .send { width: 40px; padding: 0; }
+    .send-label { display: none; }
+    .composer-note { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none">
+          <ellipse cx="20" cy="20" rx="16" ry="6.5" transform="rotate(-25 20 20)" stroke="#006c4f" stroke-width="1.25" stroke-dasharray="2 3"/>
+          <circle cx="32" cy="14" r="1.75" fill="#006c4f"/>
+        </svg>
+      </span>
+      <span>
+        <span class="brand-name">HDFC Mutual Fund FAQ Assistant</span>
+        <span class="brand-sub">Sourced answers · one question at a time</span>
+      </span>
+    </div>
+    <p class="disclaimer" id="disclaimer">__DISCLAIMER__</p>
+  </div>
+</header>
+
+<div class="orbital-bg" aria-hidden="true">
+  <svg viewBox="0 0 750 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="375" cy="120" r="140" stroke="#bbcac1" stroke-opacity=".45" stroke-width=".75" stroke-dasharray="3 6"/>
+    <circle cx="375" cy="120" r="230" stroke="#bbcac1" stroke-opacity=".3" stroke-width=".5" stroke-dasharray="4 8"/>
+    <circle cx="210" cy="110" r="2" fill="#00b386" fill-opacity=".7"/>
+    <circle cx="555" cy="140" r="2.5" fill="#00b386" fill-opacity=".6"/>
+    <path d="M210 110L262 180" stroke="#00b386" stroke-opacity=".35" stroke-width=".7" stroke-dasharray="2 4"/>
+  </svg>
+</div>
+
+<main>
+  <div class="status-pill">
+    <span class="status-dot" aria-hidden="true"></span>
+    <strong>Source-backed</strong>
+    <span class="sep" aria-hidden="true"></span>
+    <span>Five pages · one citation</span>
+  </div>
+
+  <div class="thread" id="thread" role="log" aria-label="Question and answer thread">
+    <article class="assistant-card">
+      <div class="assistant-head">
+        <span class="avatar" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none">
+            <ellipse cx="20" cy="20" rx="16" ry="6.5" transform="rotate(-25 20 20)" stroke="#00b386" stroke-width="1.25" stroke-dasharray="2 3"/>
+            <circle cx="32" cy="14" r="1.75" fill="#006c4f"/>
+          </svg>
+        </span>
+        <span class="assistant-name">HDFC FAQ Guide</span>
+        <span class="verified">Facts only</span>
+      </div>
+      <p class="welcome" id="welcome">__WELCOME__</p>
+      <div class="examples">
+        <span class="examples-label">Try a sourced question</span>
+        <div class="chips">
+          <button type="button" class="chip" data-question="__EXAMPLE_1__">__EXAMPLE_1__</button>
+          <button type="button" class="chip" data-question="__EXAMPLE_2__">__EXAMPLE_2__</button>
+          <button type="button" class="chip" data-question="__EXAMPLE_3__">__EXAMPLE_3__</button>
+        </div>
+      </div>
+    </article>
+  </div>
+</main>
+
+<div class="composer-wrap">
+  <div class="composer-inner">
+    <form class="composer" id="ask-form">
+      <label class="sr-only" for="question">Question</label>
+      <input id="question" name="question" type="text" autocomplete="off" maxlength="1000"
+             placeholder="Ask about expense ratio, exit load, lock-in, or statements" required>
+      <button class="send" id="submit" type="submit" aria-label="Ask">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 16V4M10 4L5 9M10 4L15 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="send-label">Ask</span>
+      </button>
+    </form>
+    <p class="composer-note">Answers come from the retrieved source text only.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById('ask-form');
+  const input = document.getElementById('question');
+  const submit = document.getElementById('submit');
+  const thread = document.getElementById('thread');
+  const sourceLine = /^(Source|Education source|Official factsheet):\s+(https?:\/\/\S+?)([.,;:]?\s*)$/;
+
+  function assistantCard() {
+    const card = document.createElement('article');
+    card.className = 'assistant-card';
+
+    const head = document.createElement('div');
+    head.className = 'assistant-head';
+    head.innerHTML =
+      '<span class="avatar" aria-hidden="true">' +
+      '<svg viewBox="0 0 40 40" fill="none">' +
+      '<ellipse cx="20" cy="20" rx="16" ry="6.5" transform="rotate(-25 20 20)" stroke="#00b386" stroke-width="1.25" stroke-dasharray="2 3"/>' +
+      '<circle cx="32" cy="14" r="1.75" fill="#006c4f"/>' +
+      '</svg></span>' +
+      '<span class="assistant-name">HDFC FAQ Guide</span>' +
+      '<span class="verified">Sourced</span>';
+
+    const body = document.createElement('div');
+    body.className = 'answer-body';
+    body.setAttribute('aria-live', 'polite');
+
+    card.appendChild(head);
+    card.appendChild(body);
+    return { card: card, body: body };
+  }
+
+  function addUserTurn(text) {
+    const row = document.createElement('div');
+    row.className = 'user-row';
+    const bubble = document.createElement('div');
+    bubble.className = 'user-bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    thread.appendChild(row);
+  }
+
+  function renderThinking(body) {
+    body.replaceChildren();
+    const row = document.createElement('div');
+    row.className = 'thinking';
+    row.innerHTML = '<span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span>Reviewing sourced facts…</span>';
+    body.appendChild(row);
+  }
+
+  function renderLines(body, value) {
+    body.replaceChildren();
+    String(value || 'The answer could not be generated.').split('\n').forEach(function (line) {
+      const row = document.createElement('p');
+      row.className = 'answer-line';
+      const match = sourceLine.exec(line);
+      if (match) {
+        row.appendChild(document.createTextNode(match[1] + ': '));
+        const link = document.createElement('a');
+        link.href = match[2];
+        link.textContent = match[2];
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        row.appendChild(link);
+        row.appendChild(document.createTextNode(match[3]));
+      } else {
+        row.textContent = line;
+        if (line.indexOf('Last updated from sources:') === 0) row.className = 'answer-line date';
+      }
+      body.appendChild(row);
+    });
+  }
+
+  async function ask(question) {
+    const trimmed = String(question || '').trim();
+    if (!trimmed) return;
+
+    input.value = trimmed;
+    addUserTurn(trimmed);
+    const turn = assistantCard();
+    renderThinking(turn.body);
+    thread.appendChild(turn.card);
+    thread.scrollTop = thread.scrollHeight;
+    submit.disabled = true;
+
+    try {
+      const reply = await fetch('/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question: trimmed})
+      });
+      const data = await reply.json();
+      renderLines(turn.body, data.text);
+      if (data.error || data.policy === 'error') turn.body.classList.add('is-error');
+    } catch (error) {
+      turn.body.classList.add('is-error');
+      renderLines(turn.body, 'The answer could not be generated.');
+    } finally {
+      submit.disabled = false;
+      input.value = '';
+      input.focus();
+      thread.scrollTop = thread.scrollHeight;
+    }
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    ask(input.value);
+  });
+
+  document.querySelectorAll('.chip').forEach(function (button) {
+    button.addEventListener('click', function () {
+      ask(button.dataset.question);
+    });
+  });
+})();
+</script>
+</body>
+</html>

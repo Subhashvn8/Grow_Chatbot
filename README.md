@@ -81,6 +81,13 @@ embed, or fetch any web page. It has one question field, three example buttons,
 a permanent “Facts-only. No investment advice.” disclaimer, and a response with
 one link and the corpus date line.
 
+The chat layout is adapted from the Google Stitch export in
+`Docs/design/stitch_cosmic_groww_ai_chatbot.zip`. The visual tokens and retained
+source files are recorded in `Docs/architecture.md` §4.10.1 and
+`Docs/implementation.md` §8.1; the rendered template is
+`src/grow_faq/ui/chat_page.html`. Those two documents are the main source of
+truth for the UI contract.
+
 ## Query guardrails
 
 1. **PII gate** — PAN, Aadhaar, phone, email, account-like digit strings, and

@@ -53,6 +53,19 @@ class UiTests(unittest.TestCase):
         for word in ("email", "phone", "aadhaar", "account number", " pan "):
             self.assertNotIn(word, lowered)
 
+    def test_page_uses_the_stitch_design_without_extra_endpoints(self) -> None:
+        page = self.client.get("/").text
+        lowered = page.casefold()
+
+        self.assertIn("cosmic precision fintech", lowered)
+        self.assertIn("plus jakarta sans", lowered)
+        self.assertIn("--primary-container: #00b386", lowered)
+        self.assertIn('id="disclaimer"', page)
+        self.assertIn('id="thread"', page)
+        self.assertEqual(page.count("fetch("), 1)
+        self.assertIn("fetch('/ask'", page)
+        self.assertNotIn("cdn.tailwindcss.com", lowered)
+
     def test_ask_endpoint_returns_same_text_as_cli(self) -> None:
         with patch("grow_faq.ui.app.run_ask", return_value=self.result()) as ask_mock:
             response = self.client.post("/ask", json={"question": QUESTION})
