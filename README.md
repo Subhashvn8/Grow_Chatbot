@@ -115,6 +115,29 @@ embedding model requires `grow-embed` and `grow-index` again. The citation
 allowlist lives in `Docs/sources.md` and is edited by hand; the loader never
 adds to it.
 
+## Render deployment
+
+Use a Python **Web Service** with these settings:
+
+```text
+Root Directory: .        # repository root
+Runtime: Python 3.12
+Build Command: pip install -r requirements.txt
+Start Command: uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
+Set only this environment variable:
+
+```text
+GROQ_API_KEY=your_groq_key
+```
+
+Do **not** set `CHROMA_HOST`, `EMBEDDING_PROVIDER`, or `OPENAI_API_KEY` on
+Render. The committed `data/chroma` index and local sentence-transformers are
+used instead. Choose a plan with at least 2 GB RAM because `torch` is loaded at
+runtime. Traces are written to `data/traces` and disappear on redeploy unless a
+Render Disk is attached.
+
 ## Vercel deployment
 
 Vercel uses the root `app.py` entrypoint and installs `requirements-vercel.txt`
