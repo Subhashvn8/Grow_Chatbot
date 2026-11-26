@@ -118,36 +118,39 @@ adds to it.
 ## Vercel deployment
 
 Vercel uses the root `app.py` entrypoint and installs `requirements-vercel.txt`
-instead of the local ingestion dependencies. Set these environment variables in
+instead of the local ingestion dependencies. Only these values must be set in
 the Vercel project:
 
 ```text
 GROQ_API_KEY=your_groq_key
+
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_API_KEY=your_openai_key
+
 CHROMA_HOST=your_chroma_host
-CHROMA_PORT=443
-CHROMA_SSL=true
-CHROMA_COLLECTION=hdfc_mf_facts
+CHROMA_API_KEY=your_chroma_key
 CHROMA_TENANT=your_tenant
 CHROMA_DATABASE=your_database
-CHROMA_API_KEY=your_chroma_key
-TRACE_ENABLED=false
 ```
 
 A fill-in template is available at `.env.example`. Replace every `CHANGE_ME`
 value before importing it into Vercel.
 
+Everything else already has a default in `config.yaml` or `Settings`:
+`CHROMA_COLLECTION=hdfc_mf_facts`, `CHROMA_PORT=443`, `CHROMA_SSL=true`,
+`LLM_PROVIDER=groq`, `LLM_MODEL=openai/gpt-oss-20b`, and `TOP_K=4`. Override
+them only if your deployment differs. `TRACE_ENABLED` defaults to `true`; set it
+to `false` on Vercel to skip ephemeral trace writes, though those writes are
+non-fatal.
+
 Remote retrieval calls the Chroma v2 REST API directly, so `chromadb` is not
 installed on Vercel. `CHROMA_HOST` is mandatory there; without it the app fails
 with an explicit operator error instead of trying to open local files. It may be
 a hostname such as `api.trychroma.com` or a full URL. Chroma Cloud needs
-`CHROMA_TENANT` and `CHROMA_DATABASE`; a local Chroma server defaults to
-`default_tenant` / `default_database`.
+`CHROMA_TENANT` and `CHROMA_DATABASE`; a self-hosted Chroma server defaults to
+`default_tenant` / `default_database` and may not need an API key.
 
-`LLM_PROVIDER`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`, `VECTOR_METRIC`, `TOP_K`,
-`TRACE_DIR`, `CORPUS_FILE`, and `CHROMA_TIMEOUT_SECONDS` can also be overridden.
 When the embedding model changes, re-run ingestion offline and upload the
 vectors to the remote store.
 
