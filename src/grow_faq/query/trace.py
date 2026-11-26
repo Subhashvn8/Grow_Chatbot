@@ -18,8 +18,10 @@ def write_trace(
     policy: str,
     chunks: tuple[RetrievedChunk, ...],
     answer: Answer,
-) -> Path:
-    """Persist retrieval evidence and the final answer under ``paths.traces_dir``."""
+) -> Path | None:
+    """Persist retrieval evidence, or skip when tracing is disabled."""
+    if not settings.trace_enabled:
+        return None
     settings.traces_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S-%fZ")
     path = settings.traces_dir / f"{stamp}.json"

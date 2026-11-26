@@ -76,6 +76,14 @@ class Settings:
     traces_dir: Path
     corpus_file: Path
     api_keys: Mapping[str, str | None] = field(repr=False)
+    embedding_provider: str = "local"
+    vector_host: str | None = None
+    vector_port: int = 443
+    vector_ssl: bool = True
+    vector_api_key: str | None = field(default=None, repr=False)
+    vector_tenant: str | None = None
+    vector_database: str | None = None
+    trace_enabled: bool = True
 
     @property
     def api_key(self) -> str | None:
@@ -103,7 +111,9 @@ class Settings:
             f"pages: {len(self.pages)} (allowlisted)",
             f"min document chars: {self.min_document_chars}",
             f"embedding model: {self.embedding_model} (batch {self.embedding_batch_size})",
-            f"vector DB: {self.vector_collection} @ {self.vector_persist_path} ({self.vector_metric})",
+            f"vector DB: {self.vector_collection} @ "
+            f"{self.vector_host + ':' + str(self.vector_port) if self.vector_host else self.vector_persist_path} "
+            f"({self.vector_metric}, {self.embedding_provider} embeddings)",
             f"chunking: {self.max_prose_words} words max, {self.overlap_words} overlap",
             f"top_k: {self.top_k}",
             f"llm: {self.llm_provider}/{self.llm_model} - {key_state}",
@@ -142,6 +152,49 @@ def _positive_number(section: Mapping[str, Any], key: str, where: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
         raise ConfigError(f"'{where}.{key}' must be a positive number")
     return float(value)
+
+
+def _env_text(name: str) -> str | None:
+    """Return a trimmed non-empty environment value, or None."""
+    value = (os.getenv(name) or "").strip()
+    return value or None
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = _env_text(name)
+    if value is None:
+        return default
+    if value.casefold() in {"1", "true", "yes", "on"}:
+        return True
+    if value.casefold() in {"0", "false", "no", "off"}:
+        return False
+    raise ConfigError(f"Environment variable {name} must be a boolean")
+
+
+def _env_int(name: str, default: int) -> int:
+    value = _env_text(name)
+    if value is None:
+        return default
+    try:
+        result = int(value)
+    except ValueError as exc:
+        raise ConfigError(f"Environment variable {name} must be an integer") from exc
+    if result <= 0:
+        raise ConfigError(f"Environment variable {name} must be positive")
+    return result
+
+
+def _env_number(name: str, default: float) -> float:
+    value = _env_text(name)
+    if value is None:
+        return default
+    try:
+        result = float(value)
+    except ValueError as exc:
+        raise ConfigError(f"Environment variable {name} must be a number") from exc
+    if result <= 0:
+        raise ConfigError(f"Environment variable {name} must be positive")
+    return result
 
 
 def _path(section: Mapping[str, Any], key: str, where: str, root: Path) -> Path:
@@ -237,13 +290,13 @@ def load_settings(
     sources = _section(data, "sources")
     paths = _section(data, "paths")
 
-    provider = _text(llm, "provider", "llm").lower()
+    provider = (_env_text("LLM_PROVIDER") or _text(llm, "provider", "llm")).lower()
     if provider not in SUPPORTED_PROVIDERS:
         raise ConfigError(
             f"'llm.provider' must be one of {', '.join(SUPPORTED_PROVIDERS)}"
         )
 
-    metric = _text(vector_db, "metric", "vector_db").lower()
+    metric = (_env_text("VECTOR_METRIC") or _text(vector_db, "metric", "vector_db")).lower()
     if metric not in VALID_METRICS:
         raise ConfigError(f"'vector_db.metric' must be one of {', '.join(sorted(VALID_METRICS))}")
 
@@ -257,6 +310,29 @@ def load_settings(
         for name, env_var in PROVIDER_ENV_VARS.items()
     }
 
+    embedding_provider = (_env_text("EMBEDDING_PROVIDER") or "local").lower()
+    if embedding_provider not in {"local", "openai"}:
+        raise ConfigError("EMBEDDING_PROVIDER must be 'local' or 'openai'")
+
+    top_k = _env_int("TOP_K", _positive_int(retrieval, "top_k", "retrieval"))
+    llm_timeout_seconds = _env_number(
+        "LLM_TIMEOUT_SECONDS",
+        _positive_number(llm, "timeout_seconds", "llm"),
+    )
+
+    trace_dir_env = _env_text("TRACE_DIR")
+    corpus_env = _env_text("CORPUS_FILE")
+    traces_dir = (
+        (root / trace_dir_env).resolve()
+        if trace_dir_env
+        else _path(paths, "traces_dir", "paths", root)
+    )
+    corpus_file = (
+        (root / corpus_env).resolve()
+        if corpus_env
+        else _path(paths, "corpus_file", "paths", root)
+    )
+
     return Settings(
         root=root,
         config_path=path,
@@ -264,26 +340,34 @@ def load_settings(
         scrape_user_agent=_text(scrape, "user_agent", "scrape"),
         min_document_chars=_positive_int(corpus, "min_document_chars", "corpus"),
         pages=_pages(corpus),
-        embedding_model=_text(embedding, "model", "embedding"),
+        embedding_model=_env_text("EMBEDDING_MODEL") or _text(embedding, "model", "embedding"),
         embedding_batch_size=_positive_int(embedding, "batch_size", "embedding"),
         vector_persist_path=_path(vector_db, "persist_path", "vector_db", root),
-        vector_collection=_text(vector_db, "collection", "vector_db"),
+        vector_collection=_env_text("CHROMA_COLLECTION") or _text(vector_db, "collection", "vector_db"),
         vector_metric=metric,
         max_prose_words=max_prose_words,
         overlap_words=overlap_words,
-        top_k=_positive_int(retrieval, "top_k", "retrieval"),
+        top_k=top_k,
         llm_provider=provider,
-        llm_model=_text(llm, "model", "llm"),
-        llm_timeout_seconds=_positive_number(llm, "timeout_seconds", "llm"),
+        llm_model=_env_text("LLM_MODEL") or _text(llm, "model", "llm"),
+        llm_timeout_seconds=llm_timeout_seconds,
         max_sentences=_positive_int(answer, "max_sentences", "answer"),
         sources_catalog=_path(sources, "catalog", "sources", root),
         raw_dir=_path(paths, "raw_dir", "paths", root),
         documents_dir=_path(paths, "documents_dir", "paths", root),
         chunks_dir=_path(paths, "chunks_dir", "paths", root),
         embeddings_dir=_path(paths, "embeddings_dir", "paths", root),
-        traces_dir=_path(paths, "traces_dir", "paths", root),
-        corpus_file=_path(paths, "corpus_file", "paths", root),
+        traces_dir=traces_dir,
+        corpus_file=corpus_file,
         api_keys=api_keys,
+        embedding_provider=embedding_provider,
+        vector_host=_env_text("CHROMA_HOST"),
+        vector_port=_env_int("CHROMA_PORT", 443),
+        vector_ssl=_env_bool("CHROMA_SSL", True),
+        vector_api_key=_env_text("CHROMA_API_KEY"),
+        vector_tenant=_env_text("CHROMA_TENANT"),
+        vector_database=_env_text("CHROMA_DATABASE"),
+        trace_enabled=_env_bool("TRACE_ENABLED", True),
     )
 
 

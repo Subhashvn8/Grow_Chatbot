@@ -1,8 +1,9 @@
-"""Local Chroma collection access shared by indexing and retrieval.
+"""Chroma collection access shared by indexing and retrieval.
 
-The collection is persistent under ``vector_db.persist_path``. Its metadata
-records the embedding model and distance space so an old collection cannot be
-queried with vectors from a different model.
+Local runs use the persistent client at ``vector_db.persist_path``. Setting
+``CHROMA_HOST`` switches retrieval to a remote Chroma client for serverless
+deployments. Collection metadata records the embedding model and distance space
+so an old collection cannot be queried with vectors from a different model.
 """
 
 from __future__ import annotations
@@ -40,13 +41,29 @@ def _import_chromadb() -> Any:
 
 
 def new_client(settings: Settings) -> Any:
-    """Open the local persistent Chroma client without remote telemetry."""
+    """Open a remote Chroma client when configured, otherwise local persistent."""
     chromadb = _import_chromadb()
     chroma_settings = chromadb.config.Settings(anonymized_telemetry=False)
-    return chromadb.PersistentClient(
-        path=str(settings.vector_persist_path),
-        settings=chroma_settings,
-    )
+
+    if not settings.vector_host:
+        return chromadb.PersistentClient(
+            path=str(settings.vector_persist_path),
+            settings=chroma_settings,
+        )
+
+    kwargs: dict[str, Any] = {
+        "host": settings.vector_host,
+        "port": settings.vector_port,
+        "ssl": settings.vector_ssl,
+        "settings": chroma_settings,
+    }
+    if settings.vector_tenant:
+        kwargs["tenant"] = settings.vector_tenant
+    if settings.vector_database:
+        kwargs["database"] = settings.vector_database
+    if settings.vector_api_key:
+        kwargs["headers"] = {"X-Chroma-Token": settings.vector_api_key}
+    return chromadb.HttpClient(**kwargs)
 
 
 def _collection_metadata(collection: Any) -> dict[str, Any]:

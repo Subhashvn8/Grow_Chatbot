@@ -115,6 +115,31 @@ embedding model requires `grow-embed` and `grow-index` again. The citation
 allowlist lives in `Docs/sources.md` and is edited by hand; the loader never
 adds to it.
 
+## Vercel deployment
+
+Vercel uses the root `app.py` entrypoint and installs `requirements-vercel.txt`
+instead of the local ingestion dependencies. Set these environment variables in
+the Vercel project:
+
+```text
+GROQ_API_KEY=your_groq_key
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_API_KEY=your_openai_key
+CHROMA_HOST=your_chroma_host
+CHROMA_PORT=443
+CHROMA_SSL=true
+CHROMA_COLLECTION=hdfc_mf_facts
+CHROMA_TENANT=your_tenant
+CHROMA_DATABASE=your_database
+CHROMA_API_KEY=your_chroma_key
+TRACE_ENABLED=false
+```
+
+`LLM_PROVIDER`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`, `VECTOR_METRIC`, `TOP_K`,
+`TRACE_DIR`, and `CORPUS_FILE` can also be overridden. When the embedding model
+changes, re-run ingestion offline and upload the vectors to the remote store.
+
 ## Data layout
 
 ```text

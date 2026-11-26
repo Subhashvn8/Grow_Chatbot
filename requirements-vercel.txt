@@ -1,0 +1,9 @@
+# Runtime-only dependencies for the Vercel FastAPI function.
+# Ingestion commands need the full requirements.txt locally.
+
+pyyaml>=6.0.2
+python-dotenv>=1.0.1
+fastapi>=0.115.0
+groq>=0.13.0
+openai>=1.60.0
+chromadb>=1.5.0
