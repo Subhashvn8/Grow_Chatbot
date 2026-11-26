@@ -136,6 +136,9 @@ CHROMA_API_KEY=your_chroma_key
 TRACE_ENABLED=false
 ```
 
+A fill-in template is available at `.env.example`. Replace every `CHANGE_ME`
+value before importing it into Vercel.
+
 Remote retrieval calls the Chroma v2 REST API directly, so `chromadb` is not
 installed on Vercel. `CHROMA_HOST` is mandatory there; without it the app fails
 with an explicit operator error instead of trying to open local files. It may be
