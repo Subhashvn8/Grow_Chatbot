@@ -7,6 +7,7 @@ module never fetches the web; all facts come from the persistent index.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,6 +38,27 @@ class AskResult:
     chunks: tuple[RetrievedChunk, ...]
     pii: bool
     trace_path: Path | None
+
+
+_SENSITIVE_TEXT = re.compile(
+    r"(?i)\b(api[_-]?key|token|secret|password|authorization)\b\s*[:=]\s*\S+"
+)
+
+
+def safe_error_detail(exc: BaseException) -> str:
+    """Return a short, non-secret explanation for operator diagnostics."""
+    text = str(exc).strip() or exc.__class__.__name__
+    text = _SENSITIVE_TEXT.sub(r"\1=<redacted>", text)
+    return f"{exc.__class__.__name__}: {text[:240]}"
+
+
+class AskStageError(RuntimeError):
+    """An error before answer generation, labelled by pipeline stage."""
+
+    def __init__(self, stage: str, error: BaseException) -> None:
+        self.stage = stage
+        self.detail = safe_error_detail(error)
+        super().__init__(f"{stage} failed: {self.detail}")
 
 
 def _prioritize_field(
@@ -81,12 +103,27 @@ def run_ask(
             trace_path=None,
         )
 
-    policy = classify(question)
-    field = asked_field(question) if policy == ANSWER else None
-    scheme = single_scheme(question, settings)
-    chunks = _prioritize_field(tuple(retrieve(question, settings, client=client)), field)
-    catalog = catalog or load_catalog(settings)
-    date = source_date(settings)
+    try:
+        policy = classify(question)
+        field = asked_field(question) if policy == ANSWER else None
+        scheme = single_scheme(question, settings)
+    except Exception as exc:
+        raise AskStageError("policy", exc) from exc
+
+    try:
+        chunks = _prioritize_field(
+            tuple(retrieve(question, settings, client=client)), field
+        )
+    except StaleModelError:
+        raise
+    except Exception as exc:
+        raise AskStageError("retrieval", exc) from exc
+
+    try:
+        catalog = catalog or load_catalog(settings)
+        date = source_date(settings)
+    except Exception as exc:
+        raise AskStageError("catalog", exc) from exc
 
     if policy == ANSWER and field and not any(chunk.field == field for chunk in chunks):
         answer = missing_answer(
@@ -134,6 +171,8 @@ def run_ask(
         )
     except OSError as exc:
         print(f"[warn] could not write trace: {exc}", file=sys.stderr)
+    except Exception as exc:
+        raise AskStageError("trace", exc) from exc
 
     return AskResult(
         text=answer.text,

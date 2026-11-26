@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from grow_faq.config import Settings, load_settings
-from grow_faq.query.ask import run_ask
+from grow_faq.query.ask import AskStageError, run_ask, safe_error_detail
 from grow_faq.query.retrieve import StaleModelError
 
 app = FastAPI(
@@ -225,7 +225,7 @@ def ask(payload: AskRequest):
             },
             status_code=503,
         )
-    except Exception:
+    except AskStageError as exc:
         return JSONResponse(
             {
                 "text": "The answer could not be generated.",
@@ -233,6 +233,21 @@ def ask(payload: AskRequest):
                 "policy": "error",
                 "pii": False,
                 "error": True,
+                "stage": exc.stage,
+                "detail": exc.detail,
+            },
+            status_code=500,
+        )
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "text": "The answer could not be generated.",
+                "citation": None,
+                "policy": "error",
+                "pii": False,
+                "error": True,
+                "stage": "unknown",
+                "detail": safe_error_detail(exc),
             },
             status_code=500,
         )

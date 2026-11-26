@@ -4,7 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from grow_faq.config import load_settings
-from grow_faq.query.ask import AskResult
+from grow_faq.query.ask import AskResult, AskStageError
 from grow_faq.query.pii import PII_MESSAGE
 from grow_faq.query.retrieve import StaleModelError
 from grow_faq.ui.app import app, configure
@@ -95,6 +95,22 @@ class UiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json()["text"], "The answer could not be generated.")
+
+    def test_pipeline_error_reports_stage_without_secrets(self) -> None:
+        with patch(
+            "grow_faq.ui.app.run_ask",
+            side_effect=AskStageError(
+                "retrieval", RuntimeError("Chroma request failed with HTTP 401")
+            ),
+        ):
+            response = self.client.post("/ask", json={"question": QUESTION})
+
+        data = response.json()
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(data["stage"], "retrieval")
+        self.assertIn("HTTP 401", data["detail"])
+        self.assertEqual(data["text"], "The answer could not be generated.")
+        self.assertIsNone(data["citation"])
 
 
 if __name__ == "__main__":

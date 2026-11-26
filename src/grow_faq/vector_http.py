@@ -70,6 +70,22 @@ class ChromaHttpClient:
         self.tenant = (settings.vector_tenant or DEFAULT_TENANT).strip()
         self.database = (settings.vector_database or DEFAULT_DATABASE).strip()
         self.api_key = settings.vector_api_key
+
+        if "trychroma.com" in urlparse(self.base_url).netloc.lower():
+            missing = [
+                name
+                for name, value in (
+                    ("CHROMA_API_KEY", self.api_key),
+                    ("CHROMA_TENANT", settings.vector_tenant),
+                    ("CHROMA_DATABASE", settings.vector_database),
+                )
+                if not value
+            ]
+            if missing:
+                raise ChromaHttpError(
+                    "Chroma Cloud requires " + ", ".join(missing)
+                )
+
         timeout_text = (os.getenv("CHROMA_TIMEOUT_SECONDS") or "").strip()
         self.timeout = float(timeout_text) if timeout_text else DEFAULT_TIMEOUT_SECONDS
         if self.timeout <= 0:

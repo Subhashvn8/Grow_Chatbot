@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from grow_faq.config import load_settings
 from grow_faq.query.answer import _count_sentences
-from grow_faq.query.ask import run_ask
+from grow_faq.query.ask import AskStageError, run_ask
 from grow_faq.query.catalog import load_catalog
 from grow_faq.query.pii import PII_MESSAGE
 from grow_faq.query.retrieve import RetrievedChunk, StaleModelError
@@ -193,6 +193,23 @@ class AskTests(unittest.TestCase):
                     llm=FakeLLM("unused"),
                     client=object(),
                 )
+        self.assertEqual(self.traces(), [])
+
+    def test_retrieval_failure_is_labelled_without_a_trace(self) -> None:
+        with patch(
+            "grow_faq.query.ask.retrieve",
+            side_effect=RuntimeError("Chroma request failed with HTTP 401"),
+        ):
+            with self.assertRaises(AskStageError) as caught:
+                run_ask(
+                    "Expense ratio of Large Cap?",
+                    settings=self.settings,
+                    llm=FakeLLM("unused"),
+                    client=object(),
+                )
+
+        self.assertEqual(caught.exception.stage, "retrieval")
+        self.assertIn("HTTP 401", caught.exception.detail)
         self.assertEqual(self.traces(), [])
 
 

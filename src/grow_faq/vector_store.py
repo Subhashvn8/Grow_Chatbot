@@ -48,6 +48,12 @@ def new_client(settings: Settings) -> Any:
 
         return ChromaHttpClient(settings)
 
+    if settings.embedding_provider == "openai":
+        raise RuntimeError(
+            "CHROMA_HOST is required when EMBEDDING_PROVIDER=openai. Set it to "
+            "the remote Chroma server, or use local embeddings and chromadb."
+        )
+
     chromadb = _import_chromadb()
     chroma_settings = chromadb.config.Settings(anonymized_telemetry=False)
     return chromadb.PersistentClient(

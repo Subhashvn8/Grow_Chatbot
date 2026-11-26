@@ -9,7 +9,11 @@ from grow_faq.config import load_settings
 from grow_faq.embedding import encode_texts
 from grow_faq.query.answer import Answer
 from grow_faq.query.trace import write_trace
-from grow_faq.vector_http import ChromaHttpClient, CollectionNotFoundError
+from grow_faq.vector_http import (
+    ChromaHttpClient,
+    ChromaHttpError,
+    CollectionNotFoundError,
+)
 from grow_faq.vector_store import new_client
 
 
@@ -64,6 +68,29 @@ class ServerlessTests(unittest.TestCase):
         self.assertEqual(client.tenant, "tenant-1")
         self.assertEqual(client.database, "faq")
         self.assertEqual(client.api_key, "client-secret")
+
+    def test_hosted_embeddings_require_a_remote_vector_store(self) -> None:
+        with patch.dict(os.environ, {"EMBEDDING_PROVIDER": "openai"}):
+            settings = load_settings()
+
+        with self.assertRaises(RuntimeError) as caught:
+            new_client(settings)
+
+        self.assertIn("CHROMA_HOST", str(caught.exception))
+
+    def test_chroma_cloud_requires_explicit_credentials(self) -> None:
+        values = {
+            "CHROMA_HOST": "api.trychroma.com",
+            "CHROMA_TENANT": "tenant-1",
+            "CHROMA_DATABASE": "faq",
+        }
+        with patch.dict(os.environ, values):
+            settings = load_settings()
+
+        with self.assertRaises(ChromaHttpError) as caught:
+            ChromaHttpClient(settings)
+
+        self.assertIn("CHROMA_API_KEY", str(caught.exception))
 
     def test_http_collection_uses_chroma_v2_endpoints(self) -> None:
         values = {
