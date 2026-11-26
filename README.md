@@ -137,9 +137,11 @@ TRACE_ENABLED=false
 ```
 
 Remote retrieval calls the Chroma v2 REST API directly, so `chromadb` is not
-installed on Vercel. `CHROMA_HOST` may be a hostname such as `api.trychroma.com`
-or a full URL. Chroma Cloud needs `CHROMA_TENANT` and `CHROMA_DATABASE`; a local
-Chroma server defaults to `default_tenant` / `default_database`.
+installed on Vercel. `CHROMA_HOST` is mandatory there; without it the app fails
+with an explicit operator error instead of trying to open local files. It may be
+a hostname such as `api.trychroma.com` or a full URL. Chroma Cloud needs
+`CHROMA_TENANT` and `CHROMA_DATABASE`; a local Chroma server defaults to
+`default_tenant` / `default_database`.
 
 `LLM_PROVIDER`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`, `VECTOR_METRIC`, `TOP_K`,
 `TRACE_DIR`, `CORPUS_FILE`, and `CHROMA_TIMEOUT_SECONDS` can also be overridden.

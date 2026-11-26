@@ -78,6 +78,15 @@ class ServerlessTests(unittest.TestCase):
 
         self.assertIn("CHROMA_HOST", str(caught.exception))
 
+    def test_vercel_requires_a_remote_chroma_host(self) -> None:
+        values = {"VERCEL": "1", "CHROMA_HOST": ""}
+        with patch.dict(os.environ, values):
+            settings = load_settings()
+            with self.assertRaises(RuntimeError) as caught:
+                new_client(settings)
+
+        self.assertIn("CHROMA_HOST is required on Vercel", str(caught.exception))
+
     def test_chroma_cloud_requires_explicit_credentials(self) -> None:
         values = {
             "CHROMA_HOST": "api.trychroma.com",

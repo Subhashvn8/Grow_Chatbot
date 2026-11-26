@@ -9,6 +9,7 @@ cannot be queried with vectors from a different model.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from grow_faq.config import Settings
@@ -47,6 +48,12 @@ def new_client(settings: Settings) -> Any:
         from grow_faq.vector_http import ChromaHttpClient
 
         return ChromaHttpClient(settings)
+
+    if os.getenv("VERCEL") and not settings.vector_host:
+        raise RuntimeError(
+            "CHROMA_HOST is required on Vercel. Local Chroma files are not "
+            "available inside a serverless function."
+        )
 
     if settings.embedding_provider == "openai":
         raise RuntimeError(
