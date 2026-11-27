@@ -11,7 +11,27 @@ import math
 import os
 from collections.abc import Sequence
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def model_cache_dir() -> str | None:
+    """Where local embedding models are cached.
+
+    ``MODEL_CACHE_DIR`` wins. On Render (``RENDER`` is set during build and
+    runtime) the default is inside the project directory, because only that
+    directory is carried from the build to the running service, so a model
+    downloaded at build time is not fetched again on the first question.
+    Elsewhere the sentence-transformers default cache is used.
+    """
+    explicit = (os.getenv("MODEL_CACHE_DIR") or "").strip()
+    if explicit:
+        return explicit
+    if os.getenv("RENDER"):
+        return str(PROJECT_ROOT / ".cache" / "models")
+    return None
 
 
 @lru_cache(maxsize=4)
@@ -24,7 +44,7 @@ def load_encoder(model_name: str) -> Any:
             "sentence-transformers is required for local embedding. "
             "Set EMBEDDING_PROVIDER=openai for serverless deployments."
         ) from exc
-    return SentenceTransformer(model_name)
+    return SentenceTransformer(model_name, cache_folder=model_cache_dir())
 
 
 @lru_cache(maxsize=4)
@@ -82,3 +102,20 @@ def encode_texts(
     if getattr(raw, "ndim", None) == 1:
         raw = [raw]
     return normalize_vectors([[float(value) for value in row] for row in raw])
+
+
+def main() -> int:
+    """Download the configured local embedding model (Render build step)."""
+    from grow_faq.config import load_settings
+
+    settings = load_settings()
+    load_encoder(settings.embedding_model)
+    print(
+        f"embedding model ready: {settings.embedding_model} "
+        f"(cache: {model_cache_dir() or 'default'})"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

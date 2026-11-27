@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from grow_faq.config import load_settings
-from grow_faq.embedding import normalize_vectors
+from grow_faq.embedding import PROJECT_ROOT, model_cache_dir, normalize_vectors
 from grow_faq.ingest.embed import run_embed
 
 
@@ -101,6 +101,24 @@ class EmbedTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertFalse((self.settings.embeddings_dir / "embeddings.jsonl").exists())
+
+
+class ModelCacheDirTests(unittest.TestCase):
+    def test_default_cache_outside_render(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertIsNone(model_cache_dir())
+
+    def test_render_caches_inside_the_project(self) -> None:
+        with patch.dict("os.environ", {"RENDER": "true"}, clear=True):
+            self.assertEqual(
+                model_cache_dir(), str(PROJECT_ROOT / ".cache" / "models")
+            )
+
+    def test_explicit_cache_dir_wins(self) -> None:
+        with patch.dict(
+            "os.environ", {"RENDER": "true", "MODEL_CACHE_DIR": "/tmp/m"}, clear=True
+        ):
+            self.assertEqual(model_cache_dir(), "/tmp/m")
 
 
 if __name__ == "__main__":

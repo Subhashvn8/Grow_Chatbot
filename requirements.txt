@@ -1,10 +1,17 @@
+# CPU-only PyTorch: the default Linux wheel pulls ~3 GB of CUDA packages
+# that this service never uses.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+
 # Core
 pyyaml>=6.0.2
 python-dotenv>=1.0.1
 httpx>=0.27.2
 beautifulsoup4>=4.12.3
 sentence-transformers>=3.4.1
-chromadb>=0.6.0
+# Pinned: data/chroma is committed and was written by this version.
+# Upgrade only together with a rebuilt index (grow-index).
+chromadb==1.5.9
 fastapi>=0.115.0
 uvicorn>=0.34.0
 

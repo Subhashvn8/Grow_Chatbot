@@ -133,9 +133,14 @@ Use a Python **Web Service** with these settings:
 ```text
 Root Directory: .        # repository root
 Runtime: Python 3.12
-Build Command: pip install -r requirements.txt
+Build Command: pip install -r requirements.txt && PYTHONPATH=src python -m grow_faq.embedding
 Start Command: uvicorn app:app --host 0.0.0.0 --port $PORT
 ```
+
+The second half of the build command downloads the embedding model into
+`.cache/models` inside the project, so the first question after a deploy does
+not wait for a Hugging Face download. `requirements.txt` installs the CPU-only
+PyTorch build and pins `chromadb` to the version that wrote `data/chroma`.
 
 Set only this environment variable:
 

@@ -23,3 +23,6 @@ data/traces/*
 
 # Local crash/debug logs (e.g. Chromium crashpad)
 debug.log
+
+# Embedding model cache (downloaded during the Render build)
+.cache/
