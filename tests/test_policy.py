@@ -1,7 +1,14 @@
 import unittest
 
 from grow_faq.config import load_settings
-from grow_faq.query.policy import ANSWER, FACTSHEET, REFUSE, asked_field, classify
+from grow_faq.query.policy import (
+    ANSWER,
+    FACTSHEET,
+    OUT_OF_SCOPE,
+    REFUSE,
+    asked_field,
+    classify,
+)
 from grow_faq.query.schemes import scheme_names, single_scheme
 
 
@@ -40,6 +47,24 @@ class PolicyTests(unittest.TestCase):
         ):
             with self.subTest(question=question):
                 self.assertEqual(classify(question), ANSWER)
+
+    def test_other_fund_houses_are_out_of_scope(self) -> None:
+        for question in (
+            "What is the expense ratio of SBI Bluechip Fund?",
+            "ICICI Prudential Bluechip exit load?",
+            "Returns of Axis Midcap Fund?",
+        ):
+            with self.subTest(question=question):
+                self.assertEqual(classify(question), OUT_OF_SCOPE)
+
+    def test_how_to_invest_is_a_field(self) -> None:
+        for question in (
+            "How do I buy HDFC Mid Cap Fund Direct Growth?",
+            "How to invest in HDFC Flexi Cap?",
+            "Where can I invest in HDFC ELSS?",
+        ):
+            with self.subTest(question=question):
+                self.assertEqual(asked_field(question), "how_to_invest")
 
     def test_returns_question_goes_to_factsheet(self) -> None:
         self.assertEqual(

@@ -78,6 +78,24 @@ class RetrieveTests(unittest.TestCase):
         )
         self.assertEqual(collection.calls[0]["n_results"], self.settings.top_k)
 
+    def test_how_to_invest_searches_the_amc_page(self) -> None:
+        collection = FakeCollection([response(["chunk-a"])])
+        question = "How do I buy HDFC Mid Cap Fund Direct Growth?"
+        with (
+            patch(
+                "grow_faq.query.retrieve.collection_embedding_model",
+                return_value=self.settings.embedding_model,
+            ),
+            patch("grow_faq.query.retrieve.existing_collection", return_value=collection),
+            patch("grow_faq.query.retrieve.encode_texts", return_value=[[0.1]]),
+        ):
+            retrieve(question, self.settings, client=object())
+
+        self.assertEqual(
+            collection.calls[0]["where"],
+            {"scheme_or_amc": self.settings.pages[0].name},
+        )
+
     def test_two_schemes_do_not_apply_a_filter(self) -> None:
         collection = FakeCollection([response(["chunk-a"])])
         with (

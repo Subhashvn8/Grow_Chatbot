@@ -97,17 +97,28 @@ truth for the UI contract.
 1. **PII gate** — PAN, Aadhaar, phone, email, account-like digit strings, and
    OTPs are rejected before retrieval, the LLM, or a trace. Nothing is echoed
    or stored.
-2. **Policy** — questions are classified as `answer`, `factsheet`, or `refuse`.
+2. **Policy** — questions are classified as `answer`, `factsheet`, `refuse`,
+   or `out_of_scope` (another fund house is named). Advice phrasing is refused;
+   bare words like "buy" or "sell" in a factual question are not.
 3. **Retrieval** — the question is embedded with the configured model, the
    stored model name is checked, and Chroma is queried with `top_k` from config.
    One named scheme filters on `scheme_or_amc`; two schemes or none search the
-   whole collection.
-4. **Generation** — the LLM sees only retrieved chunks. The prompt requires at
-   most three sentences, exactly one allowed URL, and the `corpus.json` date.
-5. **Check** — drafts with a disallowed URL, extra URLs, more than three
-   sentences, advice language, or a computed return are replaced by a grounded
-   template.
-6. **Trace** — non-PII turns write `data/traces/<timestamp>.json` with the
+   whole collection. "How do I buy/invest" questions search the AMC page.
+   `out_of_scope` questions skip retrieval.
+4. **Fixed replies** — `refuse`, `factsheet`, and `out_of_scope` use fixed
+   templates with a catalog link and never call the LLM. Statement questions
+   link the official statement page. An asked field with no matching chunk
+   gets "Not in the sourced pages."
+5. **Generation** — for `answer`, the LLM sees only retrieved chunks. The
+   prompt requires at most three sentences, then one allowed URL and the
+   `corpus.json` date. Reasoning models (`gpt-oss`) run with low reasoning
+   effort and a 2048-token limit; a truncated reply counts as a failure.
+6. **Check** — drafts with a disallowed URL, extra URLs, more than three
+   sentences (the source and date lines are not counted), advice language, or
+   a computed return are replaced by a template. The template quotes a chunk
+   only when it holds the asked field; otherwise it says "Not in the sourced
+   pages." LLM failures are logged as `[warn] LLM call failed: …`.
+7. **Trace** — non-PII turns write `data/traces/<timestamp>.json` with the
    question, policy, chunk ids, scores, citation, and final answer.
 
 If the collection's embedding model differs from config, the assistant stops

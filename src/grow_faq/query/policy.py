@@ -11,7 +11,19 @@ import re
 ANSWER = "answer"
 FACTSHEET = "factsheet"
 REFUSE = "refuse"
+OUT_OF_SCOPE = "out_of_scope"
 PII = "pii"
+
+# Other fund houses. Their schemes are not in the corpus, and retrieval would
+# otherwise return HDFC facts that look like an answer about them.
+OTHER_AMC_RE = re.compile(
+    r"\b(?:sbi|icici|axis|nippon|kotak|aditya birla|absl|uti|dsp|mirae"
+    r"|tata|franklin|templeton|parag parikh|ppfas|quant|motilal|edelweiss"
+    r"|bandhan|idfc|canara robeco|hsbc|invesco|sundaram|lic|baroda|bnp"
+    r"|jm financial|mahindra manulife|navi|whiteoak|union|360 one|zerodha"
+    r"|groww (?:mutual fund|amc)|pgim|shriram|trust mf|samco|helios|bajaj finserv)\b",
+    re.IGNORECASE,
+)
 
 # Advice wins over returns when both are present: "Should I buy this for the
 # return?" is a refusal, not a factsheet question.
@@ -49,6 +61,14 @@ FIELD_PATTERNS = (
     ("riskometer", re.compile(r"\briskometer\b|\brisk\s+level\b", re.I)),
     ("benchmark", re.compile(r"\bbenchmark\b", re.I)),
     ("statement_download", re.compile(r"\b(?:statement|capital[\s-]?gains?)\b", re.I)),
+    (
+        "how_to_invest",
+        re.compile(
+            r"\bhow (?:do|can|should|to)(?: i| we)? (?:buy|invest|start|purchase|apply)\b"
+            r"|\bhow to invest\b|\bwhere (?:can|do) i (?:buy|invest)\b",
+            re.I,
+        ),
+    ),
 )
 
 
@@ -56,6 +76,8 @@ def classify(question: str) -> str:
     """Return the answer policy class for a non-PII question."""
     if ADVICE_RE.search(question):
         return REFUSE
+    if OTHER_AMC_RE.search(question):
+        return OUT_OF_SCOPE
     if FACTSHEET_RE.search(question):
         return FACTSHEET
     return ANSWER

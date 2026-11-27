@@ -75,7 +75,12 @@ class SourceCatalog:
     def education_url(self) -> str:
         return self.education[0].url if self.education else ""
 
-    def statement_url(self) -> str:
+    def statement_url(self, capital_gains: bool = False) -> str:
+        """Statement page; the capital-gains guide when that is asked for."""
+        if capital_gains:
+            for entry in self.statements:
+                if "capital" in entry.label.casefold():
+                    return entry.url
         return self.statements[0].url if self.statements else ""
 
 

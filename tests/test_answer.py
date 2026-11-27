@@ -4,6 +4,7 @@ from grow_faq.config import load_settings
 from grow_faq.query.answer import (
     _count_sentences,
     failure_answer,
+    generate_answer,
     source_date,
     template_answer,
     validate_draft,
@@ -152,11 +153,57 @@ class AnswerTests(unittest.TestCase):
             self.catalog,
             self.settings,
             self.date,
+            field="expense_ratio",
         )
         self.assertEqual(answer.citation, make_chunk().source_url)
         self.assertIn("0.99%", answer.text)
         self.assertIn(f"Last updated from sources: {self.date}", answer.text)
         self.assertLessEqual(_count_sentences(answer.text), 3)
+
+    def test_template_does_not_quote_an_unrelated_chunk(self) -> None:
+        for field in (None, "exit_load"):
+            with self.subTest(field=field):
+                answer = template_answer(
+                    ANSWER,
+                    (make_chunk(),),
+                    self.catalog,
+                    self.settings,
+                    self.date,
+                    field=field,
+                )
+                self.assertIn("Not in the sourced pages.", answer.text)
+                self.assertNotIn("0.99%", answer.text)
+
+    def test_source_and_date_lines_are_not_counted_as_sentences(self) -> None:
+        draft = self.draft("No, units cannot be sold early. The lock-in is 3 years.")
+        self.assertEqual(_count_sentences(draft), 2)
+        self.assertIsNotNone(
+            validate_draft(
+                draft,
+                policy=ANSWER,
+                allowed=self.allowed,
+                date=self.date,
+                max_sentences=3,
+            )
+        )
+
+    def test_not_in_sources_draft_gets_a_cited_reply(self) -> None:
+        class Draft:
+            def generate(self, system, user):
+                return "Not in the sourced pages.\nLast updated from sources: 2026-11-26"
+
+        answer = generate_answer(
+            "Who manages HDFC Large Cap Fund?",
+            ANSWER,
+            (make_chunk(),),
+            self.settings,
+            Draft(),
+            self.catalog,
+            date=self.date,
+        )
+        self.assertTrue(answer.text.startswith("Not in the sourced pages."))
+        self.assertEqual(answer.citation, make_chunk().source_url)
+        self.assertNotIn("0.99%", answer.text)
 
     def test_failure_answer_has_no_guessed_fact(self) -> None:
         answer = failure_answer(

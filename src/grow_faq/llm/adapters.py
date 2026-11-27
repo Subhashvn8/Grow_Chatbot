@@ -10,7 +10,14 @@ from typing import Any, Protocol
 
 from grow_faq.config import Settings
 
-MAX_TOKENS = 512
+# Reasoning models (e.g. openai/gpt-oss-*) spend output tokens on hidden
+# reasoning before the answer. 512 was often exhausted, leaving an empty or
+# cut-off draft, so allow more room and ask for low reasoning effort.
+MAX_TOKENS = 2048
+
+
+def _is_reasoning_model(model: str) -> bool:
+    return "gpt-oss" in model.lower()
 
 
 class LLMError(RuntimeError):
@@ -61,8 +68,12 @@ class GroqLLM:
             ],
             temperature=0,
             max_tokens=MAX_TOKENS,
+            **({"reasoning_effort": "low"} if _is_reasoning_model(self._model) else {}),
         )
-        return _text(response.choices[0].message.content)
+        choice = response.choices[0]
+        if getattr(choice, "finish_reason", None) == "length":
+            raise LLMError("the provider hit the output token limit")
+        return _text(choice.message.content)
 
 
 class GeminiLLM:

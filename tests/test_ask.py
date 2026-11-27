@@ -169,8 +169,43 @@ class AskTests(unittest.TestCase):
         )
 
         llm.generate.assert_not_called()
+        self.assertEqual(
+            result.citation, self.catalog.statement_url(capital_gains=True)
+        )
+        self.assertIn("Capital-gains statements", result.text)
+        self.assertIn(f"Last updated from sources: {self.date}", result.text)
+
+    def test_statement_link_beats_unrelated_scheme_chunks(self) -> None:
+        llm = Mock()
+        result = self.ask("How do I download my account statement?", llm, [self.chunk])
+
+        llm.generate.assert_not_called()
         self.assertEqual(result.citation, self.catalog.statement_url())
-        self.assertIn("Not in the sourced pages.", result.text)
+        self.assertNotIn(self.chunk.source_url, result.text)
+
+    def test_other_fund_house_is_out_of_scope_without_retrieval(self) -> None:
+        llm = Mock()
+        with patch("grow_faq.query.ask.retrieve") as retrieve:
+            result = run_ask(
+                "What is the expense ratio of SBI Bluechip Fund?",
+                settings=self.settings,
+                llm=llm,
+                client=object(),
+            )
+
+        retrieve.assert_not_called()
+        llm.generate.assert_not_called()
+        self.assertEqual(result.policy, "out_of_scope")
+        self.assertIn("I only have facts for HDFC Mutual Fund", result.text)
+        self.assertNotIn("0.99%", result.text)
+        self.assertEqual(result.citation, self.catalog.ingested_url())
+
+    def test_refusal_and_factsheet_do_not_call_the_llm(self) -> None:
+        for question in ("Should I buy HDFC Flexi Cap?", "What is the CAGR of HDFC ELSS?"):
+            with self.subTest(question=question):
+                llm = Mock()
+                self.ask(question, llm, [self.chunk])
+                llm.generate.assert_not_called()
 
     def test_provider_failure_has_no_guessed_fact(self) -> None:
         llm = FakeLLM(error=RuntimeError("provider down"))

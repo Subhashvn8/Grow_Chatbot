@@ -7,6 +7,7 @@ from typing import Any
 
 from grow_faq.config import Settings
 from grow_faq.embedding import encode_texts
+from grow_faq.query.policy import asked_field
 from grow_faq.query.schemes import single_scheme
 from grow_faq.vector_store import (
     collection_embedding_model,
@@ -140,7 +141,10 @@ def retrieve(
     )[0]
 
     scheme = single_scheme(question, settings)
-    where = {"scheme_or_amc": scheme} if scheme else None
+    if asked_field(question) == "how_to_invest":
+        # Buying/investing steps live on the AMC page, not on scheme pages.
+        scheme = settings.pages[0].name
+    where ={"scheme_or_amc": scheme} if scheme else None
     chunks = _chunks(_query(collection, vector, settings.top_k, where), settings.vector_metric)
     if where and not chunks:
         chunks = _chunks(_query(collection, vector, settings.top_k), settings.vector_metric)

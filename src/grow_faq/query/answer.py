@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from dataclasses import dataclass
 
 from grow_faq.config import Settings
 from grow_faq.query.catalog import URL_RE, SourceCatalog
-from grow_faq.query.policy import ANSWER, FACTSHEET, REFUSE
+from grow_faq.query.policy import ANSWER, FACTSHEET, OUT_OF_SCOPE, REFUSE
 from grow_faq.query.retrieve import RetrievedChunk
 from grow_faq.query.schemes import single_scheme
 
@@ -31,6 +32,15 @@ POLICY_INSTRUCTIONS = {
     REFUSE: (
         "Do not give investment advice or a recommendation, even if the user "
         "rephrases it. Cite one education URL from the allowed list."
+    ),
+}
+
+# Extra context for fields whose chunks are generic rather than per scheme.
+FIELD_NOTES = {
+    "how_to_invest": (
+        "The how_to_invest chunks come from the HDFC Mutual Fund AMC page and "
+        "describe how to invest in any HDFC scheme on Groww, including the one "
+        "asked about. Summarise those steps briefly.\n"
     ),
 }
 
@@ -95,8 +105,10 @@ def build_prompt(
     allowed: frozenset[str],
     date: str,
     settings: Settings,
+    field: str | None = None,
 ) -> tuple[str, str]:
     """Return the system and user messages for the configured LLM."""
+    field_note = FIELD_NOTES.get(field or "", "")
     chunk_lines = "\n".join(
         f"- id={chunk.id} | field={chunk.field or 'none'} | "
         f"scheme={chunk.scheme_or_amc} | section={chunk.section} | "
@@ -111,8 +123,9 @@ def build_prompt(
         "Do not use memory or outside sources.\n"
         "If the asked fact is not in the chunks, say 'Not in the sourced pages.'\n"
         f"{POLICY_INSTRUCTIONS.get(policy, POLICY_INSTRUCTIONS[ANSWER])}\n"
-        f"Write at most {settings.max_sentences} sentences in total, including "
-        "the final date line.\n"
+        f"{field_note}"
+        f"Write at most {settings.max_sentences} sentences, then a line "
+        "'Source: <url>', then the date line.\n"
         "Include exactly one URL, chosen from the allowed URLs below.\n"
         f"End with exactly this line: {DATE_PREFIX} {date}\n"
         "Do not echo personal identifiers.\n"
@@ -131,8 +144,18 @@ def _extract_urls(text: str) -> list[str]:
     return [_clean_url(url) for url in URL_RE.findall(text)]
 
 
+_FOOTER_LINE_RE = re.compile(
+    rf"^\s*(?:(?:[\w ]*source:?\s*)?URL_TOKEN\.?|{re.escape(DATE_PREFIX)}.*)\s*$",
+    re.IGNORECASE,
+)
+
+
 def _count_sentences(text: str) -> int:
+    """Count answer sentences; the source line and date line are not counted."""
     masked = URL_RE.sub("URL_TOKEN", text)
+    masked = "\n".join(
+        line for line in masked.splitlines() if not _FOOTER_LINE_RE.match(line)
+    )
     parts = re.split(r"(?<=[.!?])\s+|\n+", masked.strip())
     return len([part for part in parts if part.strip()])
 
@@ -192,10 +215,12 @@ def _template_url(
     field: str | None = None,
 ) -> str:
     if policy == ANSWER:
-        if chunks and chunks[0].source_url:
-            return chunks[0].source_url
+        # Statement steps are not on the ingested pages; retrieval still returns
+        # the nearest scheme chunks, so the statement page must win over them.
         if field == "statement_download" and catalog.statement_url():
             return catalog.statement_url()
+        if chunks and chunks[0].source_url:
+            return chunks[0].source_url
         return catalog.ingested_url(scheme) or catalog.ingested_url()
     if policy == FACTSHEET:
         return catalog.factsheet_url(scheme) or catalog.factsheet_url()
@@ -218,7 +243,10 @@ def template_answer(
         body, label = "I can only share sourced facts, not investment guidance.", "Education source"
     elif policy == FACTSHEET:
         body, label = "I can't calculate or compare returns.", "Official factsheet"
-    elif chunks:
+    elif chunks and field and chunks[0].field == field:
+        # Quote a chunk only when it holds the asked field. Otherwise the top
+        # chunk is merely the nearest text and would read as a wrong answer
+        # (e.g. a SIP amount for an off-topic question).
         body, label = _first_sentence(chunks[0].text), "Source"
     else:
         body, label = "Not in the sourced pages.", "Source"
@@ -258,6 +286,28 @@ def missing_answer(
     return Answer(text=text, citation=url or None, policy=policy)
 
 
+def statement_answer(catalog: SourceCatalog, date: str, *, capital_gains: bool) -> Answer:
+    """Point statement questions at the official statement page."""
+    url = catalog.statement_url(capital_gains=capital_gains)
+    kind = "Capital-gains statements" if capital_gains else "Account statements"
+    text = (
+        f"{kind} are available from HDFC Mutual Fund's official statement service.\n"
+        f"Source: {url}\n{DATE_PREFIX} {date}"
+    )
+    return Answer(text=text, citation=url or None, policy=ANSWER)
+
+
+def scope_answer(catalog: SourceCatalog, date: str) -> Answer:
+    """Questions about other fund houses: say what is covered instead."""
+    url = catalog.ingested_url()
+    text = (
+        "I only have facts for HDFC Mutual Fund and four HDFC direct-growth "
+        "schemes: Large Cap, Flexi Cap, ELSS Tax Saver, and Mid Cap.\n"
+        f"Source: {url}\n{DATE_PREFIX} {date}"
+    )
+    return Answer(text=text, citation=url or None, policy=OUT_OF_SCOPE)
+
+
 def generate_answer(
     question: str,
     policy: str,
@@ -274,12 +324,26 @@ def generate_answer(
     date = date or source_date(settings)
     scheme = scheme if scheme is not None else single_scheme(question, settings)
     allowed = allowed_urls(policy, chunks, catalog)
-    system, user = build_prompt(question, policy, chunks, allowed, date, settings)
+    system, user = build_prompt(
+        question, policy, chunks, allowed, date, settings, field=field
+    )
 
     try:
         draft = llm.generate(system, user)  # type: ignore[attr-defined]
-    except Exception:
+    except Exception as exc:
+        detail = f"{exc.__class__.__name__}: {str(exc)[:200]}"
+        print(f"[warn] LLM call failed: {detail}", file=sys.stderr)
         return failure_answer(policy, chunks, catalog, settings, date, scheme=scheme, field=field)
+
+    if (
+        policy == ANSWER
+        and isinstance(draft, str)
+        and draft.strip().casefold().startswith("not in the sourced pages")
+    ):
+        # The model often drops the URL here; give the standard reply with one.
+        return missing_answer(
+            policy, chunks, catalog, settings, date, scheme=scheme, field=field
+        )
 
     validated = validate_draft(
         draft,

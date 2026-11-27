@@ -20,11 +20,22 @@ from grow_faq.query.answer import (
     failure_answer,
     generate_answer,
     missing_answer,
+    scope_answer,
     source_date,
+    statement_answer,
+    template_answer,
 )
 from grow_faq.query.catalog import SourceCatalog, load_catalog
 from grow_faq.query.pii import PII_MESSAGE, contains_pii
-from grow_faq.query.policy import ANSWER, PII, asked_field, classify
+from grow_faq.query.policy import (
+    ANSWER,
+    FACTSHEET,
+    OUT_OF_SCOPE,
+    PII,
+    REFUSE,
+    asked_field,
+    classify,
+)
 from grow_faq.query.retrieve import RetrievedChunk, StaleModelError, retrieve
 from grow_faq.query.schemes import single_scheme
 from grow_faq.query.trace import write_trace
@@ -110,14 +121,16 @@ def run_ask(
     except Exception as exc:
         raise AskStageError("policy", exc) from exc
 
-    try:
-        chunks = _prioritize_field(
-            tuple(retrieve(question, settings, client=client)), field
-        )
-    except StaleModelError:
-        raise
-    except Exception as exc:
-        raise AskStageError("retrieval", exc) from exc
+    chunks: tuple[RetrievedChunk, ...] = ()
+    if policy != OUT_OF_SCOPE:
+        try:
+            chunks = _prioritize_field(
+                tuple(retrieve(question, settings, client=client)), field
+            )
+        except StaleModelError:
+            raise
+        except Exception as exc:
+            raise AskStageError("retrieval", exc) from exc
 
     try:
         catalog = catalog or load_catalog(settings)
@@ -125,7 +138,23 @@ def run_ask(
     except Exception as exc:
         raise AskStageError("catalog", exc) from exc
 
-    if policy == ANSWER and field and not any(chunk.field == field for chunk in chunks):
+    has_field_chunk = bool(field) and any(chunk.field == field for chunk in chunks)
+
+    if policy == OUT_OF_SCOPE:
+        answer = scope_answer(catalog, date)
+    elif policy in (REFUSE, FACTSHEET):
+        # Nothing factual to generate: a fixed refusal or factsheet pointer is
+        # clearer and more consistent than an LLM paraphrase of one.
+        answer = template_answer(
+            policy, chunks, catalog, settings, date, scheme=scheme, field=field
+        )
+    elif field == "statement_download" and not has_field_chunk:
+        answer = statement_answer(
+            catalog,
+            date,
+            capital_gains=bool(re.search(r"capital[\s-]?gains?", question, re.I)),
+        )
+    elif policy == ANSWER and field and not has_field_chunk:
         answer = missing_answer(
             policy,
             chunks,
