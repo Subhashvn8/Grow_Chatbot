@@ -15,12 +15,23 @@ PII = "pii"
 
 # Advice wins over returns when both are present: "Should I buy this for the
 # return?" is a refusal, not a factsheet question.
+#
+# Only advice *phrasing* is matched. Bare verbs such as "buy", "sell" or "hold"
+# also appear in factual questions ("exit load if I sell within a year?",
+# "how do I buy ...?"), so they are refused only inside a request for a
+# judgement.
 ADVICE_RE = re.compile(
-    r"\b(?:should i|shall i|do you think|would you recommend|can you recommend"
-    r"|recommend(?:ation|ations|ed|ing)?|advise|buy|sell|hold|pick|choose"
-    r"|invest now|worth investing|good investment)\b"
-    r"|\bwhich (?:fund|scheme) (?:should|is best|would)\b"
-    r"|\bwhich is better\b",
+    r"\b(?:should i|shall i|should we|do you think|would you recommend"
+    r"|can you recommend|recommend(?:s|ed|ing|ation|ations)?|advise|advice"
+    r"|suggest(?:ion)?|invest now|good investment|safe investment"
+    r"|worth (?:it|buying|investing|holding|keeping)"
+    r"|(?:good|right|best) time to (?:buy|sell|invest|enter|exit)"
+    r"|(?:buy|sell|hold|keep|switch|exit|redeem)\s+or\s+(?:not|buy|sell|hold|keep|switch|exit|redeem)"
+    r"|(?:help me|which (?:one|fund|scheme) to) (?:pick|choose|select)"
+    r"|best (?:fund|scheme|option|choice)s?)\b"
+    r"|\bwhich (?:fund|scheme|one) (?:should|is (?:best|better)|would)\b"
+    r"|\bwhich is (?:better|best)\b"
+    r"|\bis (?:it|this|this fund|now) (?:a )?good\b",
     re.IGNORECASE,
 )
 

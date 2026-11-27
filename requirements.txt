@@ -8,9 +8,7 @@ chromadb>=0.6.0
 fastapi>=0.115.0
 uvicorn>=0.34.0
 
-# LLM providers (select one in config.yaml)
+# LLM provider selected in config.yaml (groq by default).
+# For another provider, add its package: google-generativeai, openai,
+# anthropic, or mistralai (see [project.optional-dependencies] in pyproject).
 groq>=0.13.0
-google-generativeai>=0.8.3
-openai>=1.60.0
-anthropic>=0.40.0
-mistralai>=1.2.0

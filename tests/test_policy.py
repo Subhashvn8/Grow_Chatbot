@@ -15,6 +15,32 @@ class PolicyTests(unittest.TestCase):
     def test_advice_phrased_as_fact_is_still_a_refusal(self) -> None:
         self.assertEqual(classify("Should I buy this for the return?"), REFUSE)
 
+    def test_advice_phrasings_are_refused(self) -> None:
+        for question in (
+            "Is it a good time to buy HDFC Mid Cap?",
+            "Should I sell my HDFC ELSS units?",
+            "Hold or sell HDFC Large Cap?",
+            "Which fund should I invest in?",
+            "Which is better, Flexi Cap or Large Cap?",
+            "Is HDFC Flexi Cap worth investing in?",
+            "Can you recommend an HDFC fund?",
+            "Help me choose between these schemes",
+            "What is the best fund among these?",
+        ):
+            with self.subTest(question=question):
+                self.assertEqual(classify(question), REFUSE)
+
+    def test_transaction_verbs_in_factual_questions_are_answered(self) -> None:
+        for question in (
+            "What is the exit load if I sell within a year?",
+            "How do I buy HDFC Mid Cap Fund Direct Growth?",
+            "Minimum SIP to hold HDFC ELSS?",
+            "Can I sell HDFC ELSS units before the lock-in ends?",
+            "How do I choose the SIP date?",
+        ):
+            with self.subTest(question=question):
+                self.assertEqual(classify(question), ANSWER)
+
     def test_returns_question_goes_to_factsheet(self) -> None:
         self.assertEqual(
             classify("Which of these four had the highest return?"), FACTSHEET

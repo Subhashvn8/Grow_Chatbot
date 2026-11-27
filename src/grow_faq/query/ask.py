@@ -149,7 +149,8 @@ def run_ask(
                 field=field,
                 date=date,
             )
-        except Exception:
+        except Exception as exc:
+            print(f"[warn] LLM unavailable: {safe_error_detail(exc)}", file=sys.stderr)
             answer = failure_answer(
                 policy,
                 chunks,

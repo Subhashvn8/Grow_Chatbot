@@ -16,7 +16,18 @@ dependencies = [
     "chromadb>=0.6.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.34.0",
+    # Default LLM provider (config.yaml: llm.provider = groq).
     "groq>=0.13.0",
+]
+
+# Other providers are optional; install the one selected in config.yaml,
+# e.g. `pip install -e .[anthropic]`, or `pip install -e .[all]`.
+[project.optional-dependencies]
+gemini = ["google-generativeai>=0.8.3"]
+openai = ["openai>=1.60.0"]
+anthropic = ["anthropic>=0.40.0"]
+mistral = ["mistralai>=1.2.0"]
+all = [
     "google-generativeai>=0.8.3",
     "openai>=1.60.0",
     "anthropic>=0.40.0",

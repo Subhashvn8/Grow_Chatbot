@@ -103,6 +103,35 @@ class AnswerTests(unittest.TestCase):
             )
         )
 
+    def test_other_advice_phrasings_are_rejected_for_facts(self) -> None:
+        for sentence in (
+            "It is a good time to invest in this fund.",
+            "I recommend this scheme.",
+            "Consider buying units before the deadline.",
+        ):
+            with self.subTest(sentence=sentence):
+                self.assertIsNone(
+                    validate_draft(
+                        self.draft(sentence),
+                        policy=ANSWER,
+                        allowed=self.allowed,
+                        date=self.date,
+                        max_sentences=3,
+                    )
+                )
+
+    def test_factual_transaction_wording_is_accepted(self) -> None:
+        draft = self.draft("An exit load of 1% applies if you sell within 1 year.")
+        self.assertIsNotNone(
+            validate_draft(
+                draft,
+                policy=ANSWER,
+                allowed=self.allowed,
+                date=self.date,
+                max_sentences=3,
+            )
+        )
+
     def test_factsheet_draft_with_a_return_is_rejected(self) -> None:
         url = "https://www.hdfcfund.com/mutual-funds/factsheets"
         draft = self.draft("The fund returned 12.4%.", url)

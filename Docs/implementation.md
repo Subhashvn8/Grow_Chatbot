@@ -47,7 +47,7 @@ python -m venv .venv
 pip install -e .
 ```
 
-Dependencies: `pyyaml`, `python-dotenv`, `httpx`, `beautifulsoup4`, `sentence-transformers`, `chromadb`, `fastapi`, `uvicorn`. Add the LLM client for the provider in `config.yaml` (`groq` by default; also `gemini`, `openai`, `anthropic`, `mistral`).
+Dependencies: `pyyaml`, `python-dotenv`, `httpx`, `beautifulsoup4`, `sentence-transformers`, `chromadb`, `fastapi`, `uvicorn`. The Groq client (the default provider) is a core dependency; the other providers are optional extras (`pip install -e .[gemini]`, `.[openai]`, `.[anthropic]`, `.[mistral]`, or `.[all]`).
 
 `config.yaml` holds the five page URLs, the embedding model (`sentence-transformers/all-MiniLM-L6-v2`), the Chroma path and collection name (`hdfc_mf_facts`), `top_k` (4), the LLM provider and model, and the path to the source list. API keys stay in `.env` (`GROQ_API_KEY` and the other provider keys). `config.py` is the only file that reads the YAML.
 

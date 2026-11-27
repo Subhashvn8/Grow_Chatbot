@@ -20,3 +20,6 @@ data/embeddings/*
 data/traces/*
 !data/traces/.gitkeep
 # The built local Chroma index is committed so Render can serve from it.
+
+# Local crash/debug logs (e.g. Chromium crashpad)
+debug.log

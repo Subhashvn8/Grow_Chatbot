@@ -38,8 +38,13 @@ AFFIRMATIVE_ADVICE_RE = re.compile(
     r"\b(?:you should|i recommend|i advise|buy this|sell this|hold this|pick this|go for)\b",
     re.IGNORECASE,
 )
+# Advice phrasing in a factual draft. Bare "buy"/"sell"/"hold" are allowed
+# because facts use them ("an exit load applies if you sell within a year").
 ADVICE_LEAK_RE = re.compile(
-    r"\b(?:recommend(?:ation|ations|ed|ing)?|advise|advice|buy|sell|hold|pick|choose)\b",
+    r"\b(?:recommend(?:s|ed|ing|ation|ations)?|advise|advisable|advice|suggest"
+    r"|good (?:time|investment|choice|option)|worth (?:it|buying|investing|holding)"
+    r"|consider (?:buying|selling|investing|holding|switching)"
+    r"|(?:buy|sell|hold|invest) now|better (?:fund|choice|option|investment))\b",
     re.IGNORECASE,
 )
 

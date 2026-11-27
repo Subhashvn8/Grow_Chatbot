@@ -147,4 +147,10 @@ def build_llm(settings: Settings) -> LLM:
     adapter = ADAPTERS.get(settings.llm_provider)
     if adapter is None:
         raise LLMError(f"unsupported LLM provider: {settings.llm_provider}")
-    return adapter(settings, settings.require_api_key())
+    try:
+        return adapter(settings, settings.require_api_key())
+    except ImportError as exc:
+        raise LLMError(
+            f"the client package for LLM provider {settings.llm_provider!r} is "
+            f"not installed. Run: pip install -e .[{settings.llm_provider}]"
+        ) from exc

@@ -35,6 +35,10 @@ python -m venv .venv
 pip install -e .
 ```
 
+This installs the Groq client used by default. For another LLM provider, set
+it in `config.yaml` and install its extra: `pip install -e .[gemini]`,
+`.[openai]`, `.[anthropic]`, `.[mistral]`, or `.[all]`.
+
 Copy `.env.example` to `.env` and set the key for the provider selected in
 `config.yaml` (Groq by default):
 
@@ -215,7 +219,8 @@ generation guardrails, traces, and the UI page/endpoint.
 
 ## Limits
 
-- This is a local prototype, not a deployed service or a financial product.
+- This is a prototype, not a financial product. The Render and Vercel setups
+  above are demo deployments with no authentication or rate limiting.
 - Only the five configured pages are ingested; factsheets are linked, not
   parsed into facts.
 - Answers are capped at three sentences and one citation. They are not a
