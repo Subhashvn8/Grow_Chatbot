@@ -96,6 +96,45 @@ class RetrieveTests(unittest.TestCase):
             {"scheme_or_amc": self.settings.pages[0].name},
         )
 
+    def test_missed_field_is_fetched_exactly_by_metadata(self) -> None:
+        class GetCollection(FakeCollection):
+            def get(self, **kwargs):
+                self.get_calls.append(kwargs)
+                return {
+                    "ids": ["mid-exit-load"],
+                    "documents": ["Exit load for HDFC Mid Cap Fund Direct Growth: 1%"],
+                    "metadatas": [{
+                        "source_url": "https://groww.in/mutual-funds/hdfc-mid-cap-fund-direct-growth",
+                        "scheme_or_amc": "HDFC Mid Cap Fund Direct Growth",
+                        "section": "fund-details",
+                        "field": "exit_load",
+                    }],
+                }
+
+        collection = GetCollection([response(["chunk-a", "chunk-b"])])
+        collection.get_calls = []
+        question = "Exit load of HDFC Mid Cap Fund Direct Growth?"
+        with (
+            patch(
+                "grow_faq.query.retrieve.collection_embedding_model",
+                return_value=self.settings.embedding_model,
+            ),
+            patch("grow_faq.query.retrieve.existing_collection", return_value=collection),
+            patch("grow_faq.query.retrieve.encode_texts", return_value=[[0.1]]),
+        ):
+            chunks = retrieve(question, self.settings, client=object())
+
+        self.assertEqual(chunks[0].id, "mid-exit-load")
+        self.assertEqual(chunks[0].field, "exit_load")
+        self.assertLessEqual(len(chunks), self.settings.top_k)
+        self.assertEqual(
+            collection.get_calls[0]["where"],
+            {"$and": [
+                {"scheme_or_amc": "HDFC Mid Cap Fund Direct Growth"},
+                {"field": "exit_load"},
+            ]},
+        )
+
     def test_two_schemes_do_not_apply_a_filter(self) -> None:
         collection = FakeCollection([response(["chunk-a"])])
         with (

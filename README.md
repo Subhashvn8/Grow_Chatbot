@@ -81,16 +81,21 @@ grow-ui
 ```
 
 The page calls the same `run_ask` function as the CLI. It does not scrape,
-embed, or fetch any web page. It has one question field, three example buttons,
-a permanent “Facts-only. No investment advice.” disclaimer, and a response with
+embed, or fetch any web page. It has one question field, example questions, a
+permanent “Facts-only. No investment advice.” disclaimer, and a response with
 one link and the corpus date line.
 
-The chat layout is adapted from the Google Stitch export in
-`Docs/design/stitch_cosmic_groww_ai_chatbot.zip`. The visual tokens and retained
-source files are recorded in `Docs/architecture.md` §4.10.1 and
-`Docs/implementation.md` §8.1; the rendered template is
-`src/grow_faq/ui/chat_page.html`. Those two documents are the main source of
-truth for the UI contract.
+The "Aurora" design (`src/grow_faq/ui/chat_page.html`) is dark-first with a
+light theme toggle. It adds four scheme cards that open one-tap fact questions
+(expense ratio, exit load or lock-in, minimum SIP, riskometer, benchmark), a
+colored badge per answer type (sourced fact, not in sources, no advice,
+factsheet, out of scope, privacy guard), a source card with the cited page,
+the snapshot date, copy-to-clipboard, a step-by-step loading state, and a
+"New conversation" button. Answer text is rendered with `textContent` only.
+It evolves the Google Stitch "Cosmic Precision Fintech" system in
+`Docs/design/` (same `#00b386` primary and Plus Jakarta Sans); see
+`Docs/architecture.md` §4.10.1 and `Docs/implementation.md` §8.1 for the
+original UI contract.
 
 ## Query guardrails
 

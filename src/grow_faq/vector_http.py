@@ -59,6 +59,22 @@ class HttpCollection:
         path = self.client._collection_path(self.collection_id, "query")
         return self.client._request("POST", path, body)
 
+    def get(
+        self,
+        *,
+        where: dict[str, Any] | None = None,
+        include: list[str] | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        """Return records matching a metadata filter (no vector search)."""
+        body: dict[str, Any] = {"include": include or ["documents", "metadatas"]}
+        if where is not None:
+            body["where"] = where
+        if limit is not None:
+            body["limit"] = limit
+        path = self.client._collection_path(self.collection_id, "get")
+        return self.client._request("POST", path, body)
+
 
 class ChromaHttpClient:
     """Client for the subset of Chroma v2 needed by ``grow-ask``."""

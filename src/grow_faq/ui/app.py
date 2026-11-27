@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import re
 import sys
 from pathlib import Path
 
@@ -68,12 +69,24 @@ def page_template() -> str:
     return PAGE_TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
+def short_scheme_name(name: str) -> str:
+    """'HDFC Flexi Cap Direct Plan Growth' -> 'Flexi Cap' for compact cards."""
+    short = re.sub(r"^HDFC\s+", "", name)
+    short = re.sub(r"\s+(?:Fund\s+)?Direct(?:\s+Plan)?\s+Growth$", "", short)
+    return short.strip() or name
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> HTMLResponse:
     """Serve the one-page UI with settings-derived labels."""
     settings = current_settings()
+    page = page_template()
+    # pages[0] is the AMC page; pages[1:] are the four schemes.
+    for number, scheme in enumerate(settings.pages[1:5], start=1):
+        page = page.replace(f"__SCHEME_{number}_SHORT__", html.escape(short_scheme_name(scheme.name)))
+        page = page.replace(f"__SCHEME_{number}__", html.escape(scheme.name))
     page = (
-        page_template()
+        page
         .replace("__WELCOME__", html.escape(welcome_line(settings)))
         .replace("__EXAMPLE_1__", html.escape(EXAMPLE_QUESTIONS[0]))
         .replace("__EXAMPLE_2__", html.escape(EXAMPLE_QUESTIONS[1]))

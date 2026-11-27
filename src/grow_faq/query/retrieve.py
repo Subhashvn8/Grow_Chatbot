@@ -140,12 +140,56 @@ def retrieve(
         settings.embedding_batch_size,
     )[0]
 
+    field = asked_field(question)
     scheme = single_scheme(question, settings)
-    if asked_field(question) == "how_to_invest":
+    if field == "how_to_invest":
         # Buying/investing steps live on the AMC page, not on scheme pages.
         scheme = settings.pages[0].name
-    where ={"scheme_or_amc": scheme} if scheme else None
+    where = {"scheme_or_amc": scheme} if scheme else None
     chunks = _chunks(_query(collection, vector, settings.top_k, where), settings.vector_metric)
     if where and not chunks:
         chunks = _chunks(_query(collection, vector, settings.top_k), settings.vector_metric)
+
+    if field and scheme and not any(chunk.field == field for chunk in chunks):
+        exact = _exact_field_chunk(collection, scheme, field)
+        if exact is not None:
+            chunks = [exact] + chunks[: max(settings.top_k - 1, 0)]
     return chunks
+
+
+EXACT_MATCH_SCORE = 1.0
+
+
+def _exact_field_chunk(collection: Any, scheme: str, field: str) -> RetrievedChunk | None:
+    """Fetch the chunk for one scheme and field by metadata, without ANN search.
+
+    Vector search is approximate, and a local HNSW index loaded while another
+    process was rewriting it can miss an item. When the question names both the
+    scheme and the field, the matching fact is looked up exactly instead.
+    """
+    getter = getattr(collection, "get", None)
+    if getter is None:
+        return None
+    try:
+        result = getter(
+            where={"$and": [{"scheme_or_amc": scheme}, {"field": field}]},
+            include=["documents", "metadatas"],
+            limit=1,
+        )
+    except Exception:
+        return None
+    ids = (result or {}).get("ids") or []
+    if not ids:
+        return None
+    documents = result.get("documents") or [""]
+    metadatas = result.get("metadatas") or [{}]
+    metadata = metadatas[0] if isinstance(metadatas[0], dict) else {}
+    return RetrievedChunk(
+        id=str(ids[0]),
+        text=str(documents[0] or ""),
+        score=EXACT_MATCH_SCORE,
+        source_url=str(metadata.get("source_url", "")),
+        scheme_or_amc=str(metadata.get("scheme_or_amc", scheme)),
+        section=str(metadata.get("section", "")),
+        field=str(metadata.get("field", field)),
+    )
